@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Simulação — Consórcio Auto</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+:root{
+  --azul:#1A4C8B;--azul-dk:#0E2F5C;--azul-faixa:#2563A8;
+  --laranja:#D9772E;--laranja-cl:#FBE9DA;
+  --verde:#0B6348;--verde-cl:#E1F5EE;
+  --verm:#A32D2D;--verm-cl:#FCEBEB;
+  --txt:#1A1A2E;--sub:#5C5C72;--borda:#D8DEE8;--fundo:#F2F4F8;--br:#fff;
+  --r:10px;--r-sm:8px;
+  --shadow:0 1px 4px rgba(0,0,0,.07);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html{-webkit-text-size-adjust:100%;}
+body{font-family:'Inter',sans-serif;background:var(--fundo);color:var(--txt);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased;}
+input,select,button{font-size:16px;} /* evita zoom automático no iOS */
+
+.wrap{max-width:680px;margin:0 auto;padding:14px 14px 90px;}
+
+/* ── PAINEL DE INPUTS ── */
+.painel{background:var(--br);border:1px solid var(--borda);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden;}
+.p-header{background:var(--azul);color:#fff;padding:13px 18px;}
+.p-header h2{font-size:12px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;}
+.p-body{padding:18px 16px;display:flex;flex-direction:column;gap:16px;}
+
+.g3{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.g3 .full{grid-column:1/-1;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+.campo{display:flex;flex-direction:column;gap:5px;}
+.campo label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--sub);}
+.campo input,.campo select{
+  border:1px solid var(--borda);border-radius:var(--r-sm);
+  padding:12px 12px;font-size:16px;font-family:'Inter',sans-serif;
+  color:var(--txt);background:var(--fundo);outline:none;width:100%;
+  -webkit-appearance:none;appearance:none;
+}
+.campo input:focus,.campo select:focus{border-color:var(--azul);background:#fff;}
+.campo .hint{font-size:11px;color:var(--sub);line-height:1.4;}
+
+.sec-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--azul);padding-bottom:8px;border-bottom:1px solid var(--borda);margin-bottom:2px;}
+
+.btn-calc{
+  width:100%;background:var(--azul);color:#fff;border:none;border-radius:var(--r-sm);
+  padding:16px;font-size:15.5px;font-weight:700;font-family:'Inter',sans-serif;
+  cursor:pointer;-webkit-appearance:none;
+}
+.btn-calc:active{opacity:.85;}
+
+/* ── DOCUMENTO ESTILO CANOPUS ── */
+#doc{display:none;background:var(--br);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);}
+
+.doc-header{
+  background:linear-gradient(100deg,var(--azul-dk) 0%,var(--azul-dk) 26%,var(--azul-faixa) 28%,var(--azul-faixa) 100%);
+  padding:16px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
+}
+.doc-logo{display:flex;flex-direction:column;color:#fff;}
+.doc-logo .ln{font-size:18px;font-weight:800;letter-spacing:.4px;}
+.doc-logo .ls{font-size:7.5px;letter-spacing:1.1px;opacity:.85;margin-top:1px;}
+.doc-tipo{display:flex;align-items:center;gap:8px;color:#fff;font-size:14px;font-weight:600;white-space:nowrap;}
+.doc-tipo svg{width:24px;height:24px;flex-shrink:0;}
+
+.doc-body{padding:20px 16px;}
+
+.bloco-titulo{font-size:15.5px;font-weight:800;color:var(--txt);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--azul-dk);}
+
+.tbl-info{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:13.5px;}
+.tbl-info tr td:first-child{padding:7px 0;color:var(--txt);}
+.tbl-info tr td:last-child{padding:7px 0;text-align:right;font-weight:700;color:var(--txt);white-space:nowrap;}
+.tbl-info tr.linha-azul td{background:var(--azul-faixa);color:#fff;font-weight:700;padding:9px 10px;}
+.tbl-info tr.linha-azul td:last-child{text-align:right;}
+
+.sub-bloco{font-size:12.5px;color:var(--sub);font-weight:600;margin:12px 0 6px;text-decoration:underline;}
+
+.lance-row{display:grid;grid-template-columns:1.3fr .8fr;row-gap:2px;padding:7px 0;font-size:13px;border-bottom:1px solid #F0F2F6;}
+.lance-row .ll{color:var(--txt);grid-column:1/-1;}
+.lance-row .lp{color:var(--azul);font-weight:700;}
+.lance-row .lv{color:var(--txt);font-weight:700;text-align:right;}
+.lance-row.total{border-top:2px solid var(--borda);border-bottom:none;margin-top:4px;padding-top:10px;font-weight:800;}
+
+.aviso{text-align:center;font-size:10.5px;color:var(--laranja);font-weight:700;margin:16px 0 6px;line-height:1.6;background:var(--laranja-cl);padding:10px 12px;border-radius:var(--r-sm);}
+
+.info-importantes{margin-top:20px;}
+.info-importantes h3{font-size:14px;font-weight:800;text-align:center;margin-bottom:10px;border-bottom:2px solid var(--azul-dk);padding-bottom:6px;}
+.info-importantes p{font-size:11px;color:var(--txt);line-height:1.6;margin-bottom:8px;}
+.info-importantes ul{font-size:11px;color:var(--txt);line-height:1.8;margin:6px 0 6px 2px;list-style:none;}
+.info-importantes ul li::before{content:'> ';color:var(--azul);font-weight:700;}
+
+.cli-info{background:var(--fundo);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:16px;font-size:11.5px;color:var(--sub);display:flex;flex-direction:column;gap:2px;}
+.cli-info strong{color:var(--txt);}
+
+/* ── BARRA DE AÇÕES FIXA (mobile) ── */
+.acoes-fixas{
+  position:fixed;bottom:0;left:0;right:0;
+  background:#fff;border-top:1px solid var(--borda);
+  padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+  display:flex;gap:8px;z-index:50;
+  box-shadow:0 -2px 10px rgba(0,0,0,.06);
+}
+.acoes-fixas.escondido{display:none;}
+.btn-acao{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  border:none;border-radius:var(--r-sm);padding:10px 6px;
+  font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;
+  text-decoration:none;-webkit-appearance:none;
+}
+.btn-pdf-fix{background:var(--azul);color:#fff;}
+.btn-share-fix{background:var(--verde);color:#fff;}
+.btn-acao svg{width:18px;height:18px;}
+.btn-acao:active{opacity:.85;}
+
+/* TOAST */
+.toast{position:fixed;bottom:78px;left:50%;transform:translateX(-50%) translateY(20px);background:#1F2937;color:#fff;padding:9px 18px;border-radius:20px;font-size:12px;font-weight:500;z-index:200;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;max-width:90vw;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* PRINT */
+@media print{
+  @page{size:A4;margin:8mm 10mm;}
+  body{background:#fff;}
+  .painel,.acoes-fixas,.toast,.no-print{display:none!important;}
+  #doc{display:block!important;box-shadow:none;}
+  .wrap{margin:0;padding:0;max-width:100%;}
+  .doc-header{padding:12px 16px;}
+  .doc-body{padding:14px 16px;}
+}
+
+/* TELAS BEM PEQUENAS (iPhone SE etc) */
+@media (max-width:360px){
+  .doc-logo .ln{font-size:16px;}
+  .doc-tipo{font-size:12.5px;}
+  .bloco-titulo{font-size:14px;}
+  body{font-size:14px;}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- PAINEL INPUTS -->
+  <div class="painel no-print" id="painel">
+    <div class="p-header"><h2>Configure a simulação</h2></div>
+    <div class="p-body">
+
+      <div class="campo">
+        <label>Nome do cliente</label>
+        <input type="text" id="nome" placeholder="Ex.: João da Silva"/>
+      </div>
+
+      <div>
+        <div class="sec-title">Plano contratado</div>
+        <div class="g3" style="margin-top:10px;">
+          <div class="campo full">
+            <label>Valor do crédito (R$)</label>
+            <input type="number" inputmode="decimal" id="credito" value="180000" oninput="recalcLance()"/>
+          </div>
+          <div class="campo">
+            <label>Prazo (meses)</label>
+            <input type="number" inputmode="numeric" id="prazo" value="86"/>
+          </div>
+          <div class="campo">
+            <label>Taxa adm. (%)</label>
+            <input type="number" inputmode="decimal" id="taxaAdm" value="16" step="0.01"/>
+          </div>
+          <div class="campo full">
+            <label>Plano</label>
+            <select id="planoNome">
+              <option>Renovação 50</option>
+              <option>Renovação 70</option>
+              <option>Padrão</option>
+            </select>
+          </div>
+          <div class="campo full">
+            <label>Qtd. de parcelas já pagas</label>
+            <input type="number" inputmode="numeric" id="parcelasPagas" value="1"/>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="sec-title">Oferta de lance</div>
+        <div class="g2" style="margin-top:10px;">
+          <div class="campo">
+            <label>Embutido (%)</label>
+            <input type="number" inputmode="decimal" id="pctEmbutido" value="50" step="0.01" oninput="recalcLance()"/>
+          </div>
+          <div class="campo">
+            <label>Recursos próprios (%)</label>
+            <input type="number" inputmode="decimal" id="pctProprio" value="15" step="0.01" oninput="recalcLance()"/>
+          </div>
+        </div>
+        <span class="hint" id="lance-total-hint" style="margin-top:8px;display:block;">Lance total: 65,0000% — R$ 117.000,00</span>
+      </div>
+
+      <button class="btn-calc" onclick="gerarDocumento()">⚡ Gerar simulação</button>
+    </div>
+  </div>
+
+  <!-- DOCUMENTO -->
+  <div id="doc">
+    <div class="doc-header">
+      <div class="doc-logo">
+        <span class="ln">CANOPUS</span>
+        <span class="ls">CONSÓRCIO</span>
+      </div>
+      <div class="doc-tipo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5"><path d="M5 11l1.5-4.5A2 2 0 018.4 5h7.2a2 2 0 011.9 1.5L19 11m-14 0h14m-14 0a1 1 0 00-1 1v5a1 1 0 001 1h1a1 1 0 001-1v-1h10v1a1 1 0 001 1h1a1 1 0 001-1v-5a1 1 0 00-1-1M7 15h.01M17 15h.01"/></svg>
+        Consórcio Auto
+      </div>
+    </div>
+
+    <div class="doc-body">
+
+      <div class="cli-info no-print">
+        <span>Simulação preparada para: <strong id="d-cliente">—</strong></span>
+        <span id="d-data">—</span>
+      </div>
+
+      <div class="bloco-titulo" id="d-plano-titulo">Plano contratado — Renovação 50</div>
+
+      <table class="tbl-info">
+        <tr class="linha-azul"><td>Valor do crédito</td><td id="d-credito">—</td></tr>
+        <tr><td>Prazo</td><td id="d-prazo">—</td></tr>
+        <tr><td>Parcelas pagas</td><td id="d-parcelas-pagas">—</td></tr>
+        <tr><td>Valor da parcela</td><td id="d-parcela-inicial">—</td></tr>
+      </table>
+
+      <div class="bloco-titulo">Oferta de lance</div>
+      <div class="lance-row">
+        <span class="ll">Recursos crédito <strong>(Embutido)</strong></span>
+        <span class="lp" id="d-pct-embutido">—</span>
+        <span class="lv" id="d-val-embutido">—</span>
+      </div>
+      <div class="lance-row">
+        <span class="ll">Recursos Próprios</span>
+        <span class="lp" id="d-pct-proprio">—</span>
+        <span class="lv" id="d-val-proprio">—</span>
+      </div>
+      <div class="lance-row total">
+        <span class="ll">Lance Total</span>
+        <span class="lp" id="d-pct-total">—</span>
+        <span class="lv" id="d-val-total">—</span>
+      </div>
+
+      <div class="bloco-titulo" style="margin-top:20px;">Plano pós-contemplação</div>
+      <table class="tbl-info">
+        <tr class="linha-azul"><td>Valor do crédito</td><td id="d-credito-pos">—</td></tr>
+      </table>
+
+      <div class="sub-bloco">Lance diluído no prazo</div>
+      <table class="tbl-info">
+        <tr><td>Quantidade da parcela</td><td id="d-qtd-diluido">—</td></tr>
+        <tr><td>Valor da parcela</td><td id="d-val-diluido">—</td></tr>
+      </table>
+
+      <div class="sub-bloco">Lance diluição parcela</div>
+      <table class="tbl-info">
+        <tr><td>Quantidade da parcela</td><td id="d-qtd-diluicao">—</td></tr>
+        <tr><td>Valor da parcela</td><td id="d-val-diluicao">—</td></tr>
+      </table>
+
+      <div class="aviso">
+        ⚠️ Os valores de diluição pós-contemplação são uma estimativa aproximada.<br>
+        Confirme os valores exatos no sistema oficial da administradora antes de apresentar ao cliente.
+      </div>
+
+      <div class="info-importantes">
+        <h3>Informações importantes</h3>
+        <p>Contemplações mensais previstas: Entre 10 a 15 cotas, conforme disponibilidade financeira do grupo, sendo uma cota liberada por sorteio e as demais por lance.</p>
+        <p>O consorciado que adquirir uma cota de automóvel poderá utilizar o crédito para as seguintes finalidades:</p>
+        <ul>
+          <li>Compra de Automóveis</li>
+          <li>Caminhões</li>
+          <li>Vans</li>
+          <li>Motocicletas</li>
+          <li>Todos os veículos deverão respeitar o prazo de até 10 anos de fabricação, exceto moto (5 anos), incluindo o ano vigente.</li>
+        </ul>
+        <p>É permitida a aquisição de veículos particulares, de agências e concessionárias.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <div style="height:8px;"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- BARRA DE AÇÕES FIXA -->
+<div class="acoes-fixas escondido no-print" id="acoes-fixas">
+  <button class="btn-acao btn-pdf-fix" onclick="salvarPDF()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+    Salvar PDF
+  </button>
+  <button class="btn-acao btn-share-fix" onclick="compartilhar()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/></svg>
+    Compartilhar
+  </button>
+</div>
+
+<script>
+const fmt=v=>'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmtPct=v=>v.toLocaleString('pt-BR',{minimumFractionDigits:4,maximumFractionDigits:4})+'%';
+const now=new Date();
+let dadosAtuais=null;
+
+function toast(msg,dur=2800){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),dur);
+}
+
+function recalcLance(){
+  const credito=parseFloat(document.getElementById('credito').value)||0;
+  const pctEmb=parseFloat(document.getElementById('pctEmbutido').value)||0;
+  const pctProp=parseFloat(document.getElementById('pctProprio').value)||0;
+  const pctTotal=pctEmb+pctProp;
+  const valTotal=credito*(pctTotal/100);
+  document.getElementById('lance-total-hint').textContent=
+    `Lance total: ${fmtPct(pctTotal)} — ${fmt(valTotal)}`;
+}
+recalcLance();
+
+function gerarDocumento(){
+  const nome=document.getElementById('nome').value.trim()||'Cliente não identificado';
+  const credito=parseFloat(document.getElementById('credito').value);
+  const prazo=parseInt(document.getElementById('prazo').value);
+  const taxaAdm=parseFloat(document.getElementById('taxaAdm').value)/100;
+  const planoNome=document.getElementById('planoNome').value;
+  const parcelasPagas=parseInt(document.getElementById('parcelasPagas').value)||0;
+  const pctEmb=parseFloat(document.getElementById('pctEmbutido').value)||0;
+  const pctProp=parseFloat(document.getElementById('pctProprio').value)||0;
+  const pctTotal=pctEmb+pctProp;
+
+  const totalBruto=credito*(1+taxaAdm);
+  const parcelaInicial=totalBruto/prazo;
+
+  const valEmbutido=credito*(pctEmb/100);
+  const valProprio=credito*(pctProp/100);
+  const valTotal=valEmbutido+valProprio;
+
+  const creditoPos=credito-valEmbutido;
+  const parcelasRestantes=Math.max(prazo-parcelasPagas,1);
+
+  const qtdDiluidoNoPrazo=Math.round((creditoPos*(1+taxaAdm))/parcelaInicial);
+  const valorDiluicaoParcela=Math.max((creditoPos*(1+taxaAdm)-valProprio*(1+taxaAdm))/parcelasRestantes,0);
+  const qtdDiluicaoParcela=parcelasRestantes;
+
+  dadosAtuais={nome,credito,prazo,parcelasPagas,parcelaInicial,planoNome,
+    pctEmb,pctProp,pctTotal,valEmbutido,valProprio,valTotal,creditoPos,
+    qtdDiluidoNoPrazo,valorDiluicaoParcela,qtdDiluicaoParcela};
+
+  document.getElementById('d-cliente').textContent=nome;
+  document.getElementById('d-data').textContent=now.toLocaleDateString('pt-BR');
+  document.getElementById('d-plano-titulo').textContent=`Plano contratado — ${planoNome}`;
+
+  document.getElementById('d-credito').textContent=fmt(credito);
+  document.getElementById('d-prazo').textContent=prazo;
+  document.getElementById('d-parcelas-pagas').textContent=parcelasPagas;
+  document.getElementById('d-parcela-inicial').textContent=fmt(parcelaInicial);
+
+  document.getElementById('d-pct-embutido').textContent=fmtPct(pctEmb);
+  document.getElementById('d-val-embutido').textContent=fmt(valEmbutido);
+  document.getElementById('d-pct-proprio').textContent=fmtPct(pctProp);
+  document.getElementById('d-val-proprio').textContent=fmt(valProprio);
+  document.getElementById('d-pct-total').textContent=fmtPct(pctTotal);
+  document.getElementById('d-val-total').textContent=fmt(valTotal);
+
+  document.getElementById('d-credito-pos').textContent=fmt(creditoPos);
+  document.getElementById('d-qtd-diluido').textContent=qtdDiluidoNoPrazo;
+  document.getElementById('d-val-diluido').textContent=fmt(parcelaInicial);
+  document.getElementById('d-qtd-diluicao').textContent=qtdDiluicaoParcela;
+  document.getElementById('d-val-diluicao').textContent=fmt(valorDiluicaoParcela);
+
+  document.getElementById('painel').style.display='none';
+  document.getElementById('doc').style.display='block';
+  document.getElementById('acoes-fixas').classList.remove('escondido');
+  document.getElementById('doc').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function salvarPDF(){
+  document.getElementById('acoes-fixas').style.display='none';
+  window.print();
+  setTimeout(()=>{document.getElementById('acoes-fixas').style.display='flex';},600);
+}
+
+async function compartilhar(){
+  if(!dadosAtuais){toast('Gere a simulação primeiro.');return;}
+  const d=dadosAtuais;
+  const texto=
+`📊 SIMULAÇÃO — CONSÓRCIO AUTO (Canopus)
+Cliente: ${d.nome}
+Plano: ${d.planoNome}
+
+Crédito: ${fmt(d.credito)} · ${d.prazo} meses
+Parcela: ${fmt(d.parcelaInicial)}
+
+Lance Embutido (${fmtPct(d.pctEmb)}): ${fmt(d.valEmbutido)}
+Recursos Próprios (${fmtPct(d.pctProp)}): ${fmt(d.valProprio)}
+Lance Total (${fmtPct(d.pctTotal)}): ${fmt(d.valTotal)}
+
+Crédito pós-contemplação: ${fmt(d.creditoPos)}`;
+
+  // Web Share API nativa — funciona em smartphones (Android/iOS)
+  if(navigator.share){
+    try{
+      await navigator.share({title:'Simulação Consórcio Auto',text:texto});
+      return;
+    }catch(err){
+      if(err.name==='AbortError') return; // usuário cancelou
+    }
+  }
+  // Fallback: copia o texto e avisa
+  try{
+    await navigator.clipboard.writeText(texto);
+    toast('📋 Texto copiado! Cole onde quiser enviar.',3500);
+  }catch(e){
+    toast('Não foi possível compartilhar neste navegador.');
+  }
+}
+</script>
+</body>
+</html>
