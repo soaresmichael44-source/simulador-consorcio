@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Simulação — Consórcio Auto</title>
+<title>Simulação de Consórcio | Mobie</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
@@ -57,10 +57,12 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
 #doc{display:none;background:var(--br);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow);}
 
 .doc-header{
-  background:linear-gradient(100deg,var(--azul-dk) 0%,var(--azul-dk) 26%,var(--azul-faixa) 28%,var(--azul-faixa) 100%);
+  background:linear-gradient(100deg,#0a1220 0%,#0a2540 34%,var(--azul-dk) 36%,var(--azul-faixa) 100%);
   padding:16px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;
 }
 .doc-logo{display:flex;flex-direction:column;color:#fff;}
+.doc-logo-svg{width:150px;height:auto;display:block;}
+.doc-header,.tbl-info tr.linha-azul td,.aviso{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 .doc-logo .ln{font-size:18px;font-weight:800;letter-spacing:.4px;}
 .doc-logo .ls{font-size:7.5px;letter-spacing:1.1px;opacity:.85;margin-top:1px;}
 .doc-tipo{display:flex;align-items:center;gap:8px;color:#fff;font-size:14px;font-weight:600;white-space:nowrap;}
@@ -95,6 +97,29 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
 .cli-info{background:var(--fundo);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:16px;font-size:11.5px;color:var(--sub);display:flex;flex-direction:column;gap:2px;}
 .cli-info strong{color:var(--txt);}
 
+/* ── ABATIMENTO ── */
+.abat-intro{font-size:11.5px;color:var(--sub);margin:-4px 0 10px;line-height:1.5;}
+.tbl-abat{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:6px;font-variant-numeric:tabular-nums;}
+.tbl-abat th{background:var(--azul-dk);color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:8px 6px;text-align:right;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.tbl-abat th:first-child,.tbl-abat td:first-child{text-align:left;}
+.tbl-abat td{padding:8px 6px;text-align:right;border-bottom:1px solid #E8ECF2;white-space:nowrap;}
+.tbl-abat tr:nth-child(even) td{background:#F6F8FB;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.tbl-abat td.pct{font-weight:800;color:var(--azul);}
+.tbl-abat td.nova{font-weight:800;color:var(--verde);}
+.tbl-abat td.eco{color:var(--verde);font-weight:600;}
+.tbl-abat tr.sel td{background:var(--verde-cl)!important;}
+.abat-nota{font-size:10.5px;color:var(--sub);line-height:1.5;margin-bottom:6px;}
+
+/* ── CABEÇALHO DO DOCUMENTO / RODAPÉ ── */
+.doc-meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--sub);border-bottom:1px solid var(--borda);padding-bottom:10px;margin-bottom:16px;}
+.doc-meta strong{color:var(--txt);}
+.doc-rodape{margin-top:22px;border-top:2px solid var(--azul-dk);padding-top:12px;font-size:10px;color:var(--sub);line-height:1.6;}
+.doc-rodape .rod-emp{font-weight:700;color:var(--txt);font-size:10.5px;}
+.doc-rodape .rod-reg{margin-top:6px;}
+.assin{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:34px;}
+.assin div{border-top:1px solid var(--txt);padding-top:5px;font-size:10px;color:var(--sub);text-align:center;}
+@media print{.tbl-abat,.lance-row,.tbl-info tr{break-inside:avoid;}}
+
 /* ── BARRA DE AÇÕES FIXA (mobile) ── */
 .acoes-fixas{
   position:fixed;bottom:0;left:0;right:0;
@@ -124,7 +149,7 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
 @media print{
   @page{size:A4;margin:8mm 10mm;}
   body{background:#fff;}
-  .painel,.acoes-fixas,.toast,.no-print{display:none!important;}
+  .painel,.acoes-fixas,.toast,.no-print,.aviso{display:none!important;}
   #doc{display:block!important;box-shadow:none;}
   .wrap{margin:0;padding:0;max-width:100%;}
   .doc-header{padding:12px 16px;}
@@ -172,6 +197,7 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
           <div class="campo full">
             <label>Plano</label>
             <select id="planoNome">
+              <option>Plano Integral</option>
               <option>Renovação 50</option>
               <option>Renovação 70</option>
               <option>Padrão</option>
@@ -180,6 +206,11 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
           <div class="campo full">
             <label>Qtd. de parcelas já pagas</label>
             <input type="number" inputmode="numeric" id="parcelasPagas" value="1"/>
+          </div>
+          <div class="campo full">
+            <label>Entrada (qtd. de parcelas)</label>
+            <input type="number" inputmode="numeric" id="entradaQtd" value="9"/>
+            <span class="hint">Entrada = quantidade × valor da parcela. Use 0 para não mostrar.</span>
           </div>
         </div>
       </div>
@@ -207,8 +238,19 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
   <div id="doc">
     <div class="doc-header">
       <div class="doc-logo">
-        <span class="ln">CANOPUS</span>
-        <span class="ls">CONSÓRCIO</span>
+        <svg class="doc-logo-svg" viewBox="0 0 558.7 184" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Mobie Soluções Financeiras">
+          <defs>
+            <linearGradient id="lg-chrome" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7f9fc"/><stop offset=".35" stop-color="#c3cad6"/><stop offset=".52" stop-color="#8f97a6"/><stop offset=".62" stop-color="#dfe5ee"/><stop offset="1" stop-color="#aab2c0"/></linearGradient>
+            <linearGradient id="lg-blue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5f9ae8"/><stop offset=".5" stop-color="#2f6ab4"/><stop offset="1" stop-color="#173e74"/></linearGradient>
+            <pattern id="lg-hatch" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45.6)"><rect width="9" height="9" fill="#242a36"/><rect width="4.2" height="9" fill="#aab3c2"/></pattern>
+          </defs>
+          <polygon points="109.9,65.4 132.7,43.2 132.7,124 109.9,124" fill="url(#lg-hatch)"/>
+          <polygon points="0,16 17.3,16 66,64.8 91.3,38.8 67.9,37 90.7,16 132.7,16 132.7,55.5 109.9,77.1 109.9,53.6 66,95 22.8,53.6 22.8,124 0,124" fill="url(#lg-blue)"/>
+          <g transform="translate(-51.3,0)" fill="url(#lg-chrome)">
+            <path d="M204,70 a63,54 0 1 0 126,0 a63,54 0 1 0 -126,0 M240,70 a27,25 0 1 0 54,0 a27,25 0 1 0 -54,0" fill-rule="evenodd"/><path d="M350,16 H400 C433,16 452,26 452,43 C452,56 442,65 428,70 C444,75 454,84 454,97 C454,114 434,124 401,124 H350 Z M382,42 H400 C410,42 414,46 414,52 C414,58 410,62 400,62 H382 Z M382,78 H402 C413,78 418,82 418,89 C418,96 413,100 402,100 H382 Z" fill-rule="evenodd"/><path d="M470,16 H504 V124 H470 Z"/><path d="M522,16 H610 V44 H556 V56 H602 V84 H556 V96 H610 V124 H522 Z"/>
+          </g>
+          <text x="279.35" y="172" text-anchor="middle" font-family="Inter,sans-serif" font-size="33" font-weight="600" letter-spacing="8.2" fill="url(#lg-chrome)">SOLUÇÕES FINANCEIRAS</text>
+        </svg>
       </div>
       <div class="doc-tipo">
         <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5"><path d="M5 11l1.5-4.5A2 2 0 018.4 5h7.2a2 2 0 011.9 1.5L19 11m-14 0h14m-14 0a1 1 0 00-1 1v5a1 1 0 001 1h1a1 1 0 001-1v-1h10v1a1 1 0 001 1h1a1 1 0 001-1v-5a1 1 0 00-1-1M7 15h.01M17 15h.01"/></svg>
@@ -218,7 +260,12 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
 
     <div class="doc-body">
 
-      <div class="cli-info no-print">
+      <div class="doc-meta">
+        <span>Simulação nº <strong id="d-numero">—</strong></span>
+        <span>Emitida em <strong id="d-emissao">—</strong></span>
+      </div>
+
+      <div class="cli-info">
         <span>Simulação preparada para: <strong id="d-cliente">—</strong></span>
         <span id="d-data">—</span>
       </div>
@@ -230,6 +277,7 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
         <tr><td>Prazo</td><td id="d-prazo">—</td></tr>
         <tr><td>Parcelas pagas</td><td id="d-parcelas-pagas">—</td></tr>
         <tr><td>Valor da parcela</td><td id="d-parcela-inicial">—</td></tr>
+        <tr class="linha-azul" id="row-entrada"><td id="d-entrada-label">Entrada</td><td id="d-entrada">—</td></tr>
       </table>
 
       <div class="bloco-titulo">Oferta de lance</div>
@@ -266,6 +314,14 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
         <tr><td>Valor da parcela</td><td id="d-val-diluicao">—</td></tr>
       </table>
 
+      <div class="bloco-titulo" style="margin-top:20px;">Abatimento das parcelas com lance</div>
+      <p class="abat-intro">Quanto a parcela cai quando o lance ofertado é usado para abater o saldo devedor. Se preferir manter o valor da parcela, o lance reduz o número de parcelas restantes.</p>
+      <table class="tbl-abat">
+        <thead><tr><th>Lance</th><th>Valor do lance</th><th>Nova parcela</th><th>Redução/mês</th><th>Ou prazo</th></tr></thead>
+        <tbody id="d-abat"></tbody>
+      </table>
+      <p class="abat-nota">Linha em verde: lance escolhido nesta simulação. Com lance embutido, o crédito liberado é reduzido no mesmo valor do embutido.</p>
+
       <div class="aviso">
         ⚠️ Os valores de diluição pós-contemplação são uma estimativa aproximada.<br>
         Confirme os valores exatos no sistema oficial da administradora antes de apresentar ao cliente.
@@ -283,6 +339,17 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
           <li>Todos os veículos deverão respeitar o prazo de até 10 anos de fabricação, exceto moto (5 anos), incluindo o ano vigente.</li>
         </ul>
         <p>É permitida a aquisição de veículos particulares, de agências e concessionárias.</p>
+      </div>
+
+      <div class="assin">
+        <div>Consultor Mobie</div>
+        <div>Cliente</div>
+      </div>
+
+      <div class="doc-rodape">
+        <div class="rod-emp">Mobie Soluções Financeiras · CNPJ 29.219.117/0001-42</div>
+        <div>Belo Horizonte, MG · (31) 98770-8241 · contato@mobiefinanceira.com.br</div>
+        <div class="rod-reg">Consórcio regido pela Lei nº 11.795/2008, sob fiscalização do Banco Central do Brasil. Esta é uma simulação e não constitui oferta nem contrato: taxas, prazos, crédito e contemplação estão sujeitos às regras do grupo e à confirmação da administradora.</div>
       </div>
 
     </div>
@@ -343,9 +410,11 @@ function gerarDocumento(){
   const pctEmb=parseFloat(document.getElementById('pctEmbutido').value)||0;
   const pctProp=parseFloat(document.getElementById('pctProprio').value)||0;
   const pctTotal=pctEmb+pctProp;
+  const entradaQtd=parseInt(document.getElementById('entradaQtd').value)||0;
 
   const totalBruto=credito*(1+taxaAdm);
   const parcelaInicial=totalBruto/prazo;
+  const entrada=Math.round(parcelaInicial*100)/100*entradaQtd;
 
   const valEmbutido=credito*(pctEmb/100);
   const valProprio=credito*(pctProp/100);
@@ -360,7 +429,7 @@ function gerarDocumento(){
 
   dadosAtuais={nome,credito,prazo,parcelasPagas,parcelaInicial,planoNome,
     pctEmb,pctProp,pctTotal,valEmbutido,valProprio,valTotal,creditoPos,
-    qtdDiluidoNoPrazo,valorDiluicaoParcela,qtdDiluicaoParcela};
+    qtdDiluidoNoPrazo,valorDiluicaoParcela,qtdDiluicaoParcela,entradaQtd,entrada};
 
   document.getElementById('d-cliente').textContent=nome;
   document.getElementById('d-data').textContent=now.toLocaleDateString('pt-BR');
@@ -370,6 +439,9 @@ function gerarDocumento(){
   document.getElementById('d-prazo').textContent=prazo;
   document.getElementById('d-parcelas-pagas').textContent=parcelasPagas;
   document.getElementById('d-parcela-inicial').textContent=fmt(parcelaInicial);
+  document.getElementById('row-entrada').style.display=entradaQtd>0?'':'none';
+  document.getElementById('d-entrada-label').textContent="Entrada";
+  document.getElementById('d-entrada').textContent=fmt(entrada);
 
   document.getElementById('d-pct-embutido').textContent=fmtPct(pctEmb);
   document.getElementById('d-val-embutido').textContent=fmt(valEmbutido);
@@ -383,6 +455,25 @@ function gerarDocumento(){
   document.getElementById('d-val-diluido').textContent=fmt(parcelaInicial);
   document.getElementById('d-qtd-diluicao').textContent=qtdDiluicaoParcela;
   document.getElementById('d-val-diluicao').textContent=fmt(valorDiluicaoParcela);
+
+  // Abatimento: o lance amortiza o saldo devedor na mesma proporção do crédito
+  // (lance de X% do crédito abate X% do valor total do plano).
+  const saldo=parcelaInicial*parcelasRestantes;
+  const niveis=[10,20,30,40,50];
+  if(pctTotal>0&&!niveis.includes(Math.round(pctTotal*100)/100))niveis.push(pctTotal);
+  niveis.sort((a,b)=>a-b);
+  document.getElementById('d-abat').innerHTML=niveis.map(p=>{
+    const lanceVal=credito*p/100;
+    const abate=totalBruto*p/100;
+    const nova=Math.max(saldo-abate,0)/parcelasRestantes;
+    const prazoNovo=Math.max(Math.ceil((saldo-abate)/parcelaInicial),0);
+    const sel=Math.abs(p-pctTotal)<0.0001?' class="sel"':'';
+    return `<tr${sel}><td class="pct">${p.toLocaleString('pt-BR',{maximumFractionDigits:2})}%</td><td>${fmt(lanceVal)}</td><td class="nova">${fmt(nova)}</td><td class="eco">− ${fmt(parcelaInicial-nova)}</td><td>${prazoNovo}x</td></tr>`;
+  }).join('');
+
+  const num=now.getFullYear().toString()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+'-'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
+  document.getElementById('d-numero').textContent=num;
+  document.getElementById('d-emissao').textContent=now.toLocaleDateString('pt-BR')+' às '+now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 
   salvarCampos();
   history.pushState({tela:'doc'},'','#simulacao');
@@ -413,7 +504,7 @@ window.addEventListener('popstate',function(e){
 });
 
 // Memória dos últimos valores digitados
-const CAMPOS_SALVOS=['nome','credito','prazo','taxaAdm','planoNome','parcelasPagas','pctEmbutido','pctProprio'];
+const CAMPOS_SALVOS=['nome','credito','prazo','taxaAdm','planoNome','parcelasPagas','pctEmbutido','pctProprio','entradaQtd'];
 function salvarCampos(){
   const dados={};
   CAMPOS_SALVOS.forEach(id=>{const el=document.getElementById(id);if(el)dados[id]=el.value;});
@@ -441,12 +532,12 @@ async function compartilhar(){
   if(!dadosAtuais){toast('Gere a simulação primeiro.');return;}
   const d=dadosAtuais;
   const texto=
-`📊 SIMULAÇÃO — CONSÓRCIO AUTO (Canopus)
+`📊 SIMULAÇÃO DE CONSÓRCIO — Mobie Soluções Financeiras
 Cliente: ${d.nome}
 Plano: ${d.planoNome}
 
 Crédito: ${fmt(d.credito)} · ${d.prazo} meses
-Parcela: ${fmt(d.parcelaInicial)}
+Parcela: ${fmt(d.parcelaInicial)}${d.entradaQtd>0?`\nEntrada: ${fmt(d.entrada)}`:''}
 
 Lance Embutido (${fmtPct(d.pctEmb)}): ${fmt(d.valEmbutido)}
 Recursos Próprios (${fmtPct(d.pctProp)}): ${fmt(d.valProprio)}
