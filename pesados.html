@@ -214,8 +214,8 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
           </div>
           <div class="campo full">
             <label>Valor da entrada (R$)</label>
-            <input type="number" inputmode="decimal" id="entradaValor" step="0.01" placeholder="Em branco = 9x a parcela"/>
-            <span class="hint" id="entrada-hint">Digite o valor da entrada. Em branco, calcula 9x a parcela. Use 0 para não mostrar.</span>
+            <input type="text" inputmode="decimal" id="entradaValor" autocomplete="off" placeholder="Ex.: 28.000,00" oninput="mostrarEntrada()"/>
+            <span class="hint" id="entrada-hint">Deixe em branco para não mostrar entrada na proposta.</span>
           </div>
         </div>
       </div>
@@ -426,6 +426,24 @@ function recalcLance(){
 }
 recalcLance();
 
+// Aceita "28000", "28.000", "28.000,50", "R$ 30.000" e "28 mil".
+function lerValor(txt){
+  let t=String(txt||'').trim().toLowerCase();
+  if(!t)return 0;
+  const mil=/mil/.test(t);
+  t=t.replace(/[^\d,.]/g,'');
+  if(t.includes(','))t=t.replace(/\./g,'').replace(',','.');
+  else if(/^\d{1,3}(\.\d{3})+$/.test(t))t=t.replace(/\./g,'');
+  const v=parseFloat(t)||0;
+  return mil?v*1000:v;
+}
+function mostrarEntrada(){
+  const v=lerValor(document.getElementById('entradaValor').value);
+  document.getElementById('entrada-hint').textContent=v>0
+    ?`Na proposta: ${fmt(v)}`
+    :'Deixe em branco para não mostrar entrada na proposta.';
+}
+
 function gerarDocumento(){
   const nome=document.getElementById('nome').value.trim()||'Cliente não identificado';
   const credito=parseFloat(document.getElementById('credito').value);
@@ -440,7 +458,7 @@ function gerarDocumento(){
 
   const totalBruto=credito*(1+taxaAdm);
   const parcelaInicial=totalBruto/prazo;
-  const entrada=entradaDigitada===''?Math.round(parcelaInicial*100)/100*9:(parseFloat(entradaDigitada.replace(',','.'))||0);
+  const entrada=lerValor(entradaDigitada);
 
   const valEmbutido=credito*(pctEmb/100);
   const valProprio=credito*(pctProp/100);
@@ -557,6 +575,7 @@ function restaurarCampos(){
       if(el&&dados[id]!==undefined&&dados[id]!=='')el.value=dados[id];
     });
     recalcLance();
+    mostrarEntrada();
   }catch(e){}
 }
 restaurarCampos();
