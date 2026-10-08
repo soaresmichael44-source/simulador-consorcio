@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Simulação de Consórcio | Mobie</title>
+<title>Simulação de Consórcio Pesados | Mobie</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
@@ -172,7 +172,7 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
 
 <div class="wrap">
 
-  <nav class="tabs-sim no-print"><a href="./" class="on">Auto</a><a href="pesados.html" class="">Pesados</a></nav>
+  <nav class="tabs-sim no-print"><a href="./" class="">Auto</a><a href="pesados.html" class="on">Pesados</a></nav>
 
   <!-- PAINEL INPUTS -->
   <div class="painel no-print" id="painel">
@@ -189,15 +189,15 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
         <div class="g3" style="margin-top:10px;">
           <div class="campo full">
             <label>Valor do crédito (R$)</label>
-            <input type="number" inputmode="decimal" id="credito" value="180000" oninput="recalcLance()"/>
+            <input type="number" inputmode="decimal" id="credito" value="347287.50" oninput="recalcLance()"/>
           </div>
           <div class="campo">
             <label>Prazo (meses)</label>
-            <input type="number" inputmode="numeric" id="prazo" value="86"/>
+            <input type="number" inputmode="numeric" id="prazo" value="140"/>
           </div>
           <div class="campo">
             <label>Taxa adm. (%)</label>
-            <input type="number" inputmode="decimal" id="taxaAdm" value="16" step="0.01"/>
+            <input type="number" inputmode="decimal" id="taxaAdm" value="27" step="0.01"/>
           </div>
           <div class="campo full">
             <label>Plano</label>
@@ -210,7 +210,7 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
           </div>
           <div class="campo full">
             <label>Qtd. de parcelas já pagas</label>
-            <input type="number" inputmode="numeric" id="parcelasPagas" value="1"/>
+            <input type="number" inputmode="numeric" id="parcelasPagas" value="0"/>
           </div>
           <div class="campo full">
             <label>Valor da entrada (R$)</label>
@@ -272,8 +272,8 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
         </svg>
       </div>
       <div class="doc-tipo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5"><path d="M5 11l1.5-4.5A2 2 0 018.4 5h7.2a2 2 0 011.9 1.5L19 11m-14 0h14m-14 0a1 1 0 00-1 1v5a1 1 0 001 1h1a1 1 0 001-1v-1h10v1a1 1 0 001 1h1a1 1 0 001-1v-5a1 1 0 00-1-1M7 15h.01M17 15h.01"/></svg>
-        Consórcio Auto
+        <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5h11v10h-11z"/><path d="M13.5 9.5h4l3 3.5v3.5h-7"/><circle cx="6.5" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>
+        Consórcio Pesados
       </div>
     </div>
 
@@ -356,15 +356,15 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
       <div class="info-importantes">
         <h3>Informações importantes</h3>
         <p>Contemplações mensais previstas: Entre 10 a 15 cotas, conforme disponibilidade financeira do grupo, sendo uma cota liberada por sorteio e as demais por lance.</p>
-        <p>O consorciado que adquirir uma cota de automóvel poderá utilizar o crédito para as seguintes finalidades:</p>
+        <p>O consorciado que adquirir uma cota de pesados poderá utilizar o crédito para as seguintes finalidades:</p>
         <ul>
-          <li>Compra de Automóveis</li>
-          <li>Caminhões</li>
-          <li>Vans</li>
-          <li>Motocicletas</li>
-          <li>Todos os veículos deverão respeitar o prazo de até 10 anos de fabricação, exceto moto (5 anos), incluindo o ano vigente.</li>
+          <li>Caminhões e cavalos mecânicos</li>
+          <li>Carretas e implementos rodoviários</li>
+          <li>Tratores e máquinas agrícolas</li>
+          <li>Ônibus e micro-ônibus</li>
+          <li>Ano de fabricação e demais condições do bem conforme as regras do grupo e da administradora.</li>
         </ul>
-        <p>É permitida a aquisição de veículos particulares, de agências e concessionárias.</p>
+        <p>É permitida a aquisição de bens novos e usados, de particulares, revendas e concessionárias.</p>
       </div>
 
       <div class="assin">
@@ -547,11 +547,11 @@ const CAMPOS_SALVOS=['nome','credito','prazo','taxaAdm','planoNome','parcelasPag
 function salvarCampos(){
   const dados={};
   CAMPOS_SALVOS.forEach(id=>{const el=document.getElementById(id);if(el)dados[id]=el.value;});
-  try{localStorage.setItem('simulador_campos',JSON.stringify(dados));}catch(e){}
+  try{localStorage.setItem('simulador_campos_pesados',JSON.stringify(dados));}catch(e){}
 }
 function restaurarCampos(){
   try{
-    const dados=JSON.parse(localStorage.getItem('simulador_campos')||'{}');
+    const dados=JSON.parse(localStorage.getItem('simulador_campos_pesados')||'{}');
     CAMPOS_SALVOS.forEach(id=>{
       const el=document.getElementById(id);
       if(el&&dados[id]!==undefined&&dados[id]!=='')el.value=dados[id];
@@ -571,7 +571,7 @@ async function compartilhar(){
   if(!dadosAtuais){toast('Gere a simulação primeiro.');return;}
   const d=dadosAtuais;
   const texto=
-`📊 SIMULAÇÃO DE CONSÓRCIO
+`📊 SIMULAÇÃO DE CONSÓRCIO PESADOS
 Cliente: ${d.nome}
 Plano: ${d.planoNome}
 
@@ -587,7 +587,7 @@ Crédito pós-contemplação: ${fmt(d.creditoPos)}`;
   // Web Share API nativa — funciona em smartphones (Android/iOS)
   if(navigator.share){
     try{
-      await navigator.share({title:'Simulação Consórcio Auto',text:texto});
+      await navigator.share({title:'Simulação Consórcio Pesados',text:texto});
       return;
     }catch(err){
       if(err.name==='AbortError') return; // usuário cancelou
