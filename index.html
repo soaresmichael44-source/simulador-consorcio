@@ -97,28 +97,28 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
 .cli-info{background:var(--fundo);border-radius:var(--r-sm);padding:10px 14px;margin-bottom:16px;font-size:11.5px;color:var(--sub);display:flex;flex-direction:column;gap:2px;}
 .cli-info strong{color:var(--txt);}
 
-/* ── ABATIMENTO ── */
-.abat-intro{font-size:11.5px;color:var(--sub);margin:-4px 0 10px;line-height:1.5;}
-.tbl-abat{width:100%;border-collapse:collapse;font-size:12.5px;margin-bottom:6px;font-variant-numeric:tabular-nums;}
-.tbl-abat th{background:var(--azul-dk);color:#fff;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:8px 6px;text-align:right;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-.tbl-abat th:first-child,.tbl-abat td:first-child{text-align:left;}
-.tbl-abat td{padding:8px 6px;text-align:right;border-bottom:1px solid #E8ECF2;white-space:nowrap;}
-.tbl-abat tr:nth-child(even) td{background:#F6F8FB;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-.tbl-abat td.pct{font-weight:800;color:var(--azul);}
-.tbl-abat td.nova{font-weight:800;color:var(--verde);}
-.tbl-abat td.eco{color:var(--verde);font-weight:600;}
-.tbl-abat tr.sel td{background:var(--verde-cl)!important;}
-.abat-nota{font-size:10.5px;color:var(--sub);line-height:1.5;margin-bottom:6px;}
+/* ── DEMONSTRATIVO DA DILUIÇÃO ── */
+.tbl-demo{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:8px;font-variant-numeric:tabular-nums;}
+.tbl-demo td{padding:7px 0;border-bottom:1px solid #EEF1F5;}
+.tbl-demo td:last-child{text-align:right;font-weight:700;white-space:nowrap;}
+.tbl-demo tr.menos td{color:var(--verm);}
+.tbl-demo tr.subtotal td{border-top:2px solid var(--borda);font-weight:800;}
+.tbl-demo tr.opcao td{background:var(--azul-faixa);color:#fff;font-weight:700;padding:9px 10px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.demo-ok{font-size:11.5px;font-weight:700;padding:8px 12px;border-radius:var(--r-sm);margin-top:4px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+.demo-ok.ok{background:var(--verde-cl);color:var(--verde);}
+.demo-ok.fora{background:var(--verm-cl);color:var(--verm);}
+.rod-contemp{color:#C0262D;font-size:7px;margin-top:6px;}
 
 /* ── CABEÇALHO DO DOCUMENTO / RODAPÉ ── */
 .doc-meta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--sub);border-bottom:1px solid var(--borda);padding-bottom:10px;margin-bottom:16px;}
 .doc-meta strong{color:var(--txt);}
 .doc-rodape{margin-top:22px;border-top:2px solid var(--azul-dk);padding-top:12px;font-size:10px;color:var(--sub);line-height:1.6;}
 .doc-rodape .rod-emp{font-weight:700;color:var(--txt);font-size:10.5px;}
+.doc-rodape .rod-emp:empty{display:none;}
 .doc-rodape .rod-reg{margin-top:6px;}
 .assin{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:34px;}
 .assin div{border-top:1px solid var(--txt);padding-top:5px;font-size:10px;color:var(--sub);text-align:center;}
-@media print{.tbl-abat,.lance-row,.tbl-info tr{break-inside:avoid;}}
+@media print{.tbl-demo,.lance-row,.tbl-info tr{break-inside:avoid;}.bloco-titulo{break-after:avoid;}}
 
 /* ── BARRA DE AÇÕES FIXA (mobile) ── */
 .acoes-fixas{
@@ -230,6 +230,20 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
         <span class="hint" id="lance-total-hint" style="margin-top:8px;display:block;">Lance total: 65,0000% — R$ 117.000,00</span>
       </div>
 
+      <div>
+        <div class="sec-title">Empresa do contrato (rodapé)</div>
+        <div class="g2" style="margin-top:10px;">
+          <div class="campo">
+            <label>Razão social</label>
+            <input type="text" id="empresaContrato" placeholder="Empresa que emite o contrato"/>
+          </div>
+          <div class="campo">
+            <label>CNPJ</label>
+            <input type="text" inputmode="numeric" id="cnpjContrato" placeholder="00.000.000/0000-00"/>
+          </div>
+        </div>
+      </div>
+
       <button class="btn-calc" onclick="gerarDocumento()">⚡ Gerar simulação</button>
     </div>
   </div>
@@ -314,13 +328,20 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
         <tr><td>Valor da parcela</td><td id="d-val-diluicao">—</td></tr>
       </table>
 
-      <div class="bloco-titulo" style="margin-top:20px;">Abatimento das parcelas com lance</div>
-      <p class="abat-intro">Quanto a parcela cai quando o lance ofertado é usado para abater o saldo devedor. Se preferir manter o valor da parcela, o lance reduz o número de parcelas restantes.</p>
-      <table class="tbl-abat">
-        <thead><tr><th>Lance</th><th>Valor do lance</th><th>Nova parcela</th><th>Redução/mês</th><th>Ou prazo</th></tr></thead>
-        <tbody id="d-abat"></tbody>
+      <div class="bloco-titulo" style="margin-top:20px;">Demonstrativo da diluição do lance</div>
+      <table class="tbl-demo">
+        <tr><td>Crédito contratado</td><td id="dm-credito">—</td></tr>
+        <tr><td>Valor total do plano (crédito + taxas)</td><td id="dm-total">—</td></tr>
+        <tr class="menos"><td>(−) Parcelas pagas até a contemplação</td><td id="dm-pagas">—</td></tr>
+        <tr class="subtotal"><td>Saldo devedor na contemplação</td><td id="dm-saldo">—</td></tr>
+        <tr class="menos"><td>(−) Abatimento do lance embutido</td><td id="dm-emb">—</td></tr>
+        <tr class="menos"><td>(−) Abatimento do lance com recursos próprios</td><td id="dm-prop">—</td></tr>
+        <tr class="subtotal"><td>Saldo devedor após o lance</td><td id="dm-saldo-pos">—</td></tr>
+        <tr><td>Crédito liberado ao cliente</td><td id="dm-liberado">—</td></tr>
+        <tr class="opcao"><td>Diluindo na parcela</td><td id="dm-op-parcela">—</td></tr>
+        <tr class="opcao"><td>Diluindo no prazo</td><td id="dm-op-prazo">—</td></tr>
       </table>
-      <p class="abat-nota">Linha em verde: lance escolhido nesta simulação. Com lance embutido, o crédito liberado é reduzido no mesmo valor do embutido.</p>
+      <div class="demo-ok" id="dm-status">—</div>
 
       <div class="aviso">
         ⚠️ Os valores de diluição pós-contemplação são uma estimativa aproximada.<br>
@@ -342,14 +363,14 @@ input,select,button{font-size:16px;} /* evita zoom automático no iOS */
       </div>
 
       <div class="assin">
-        <div>Consultor Mobie</div>
+        <div>Consultor</div>
         <div>Cliente</div>
       </div>
 
       <div class="doc-rodape">
-        <div class="rod-emp">Mobie Soluções Financeiras · CNPJ 29.219.117/0001-42</div>
-        <div>Belo Horizonte, MG · (31) 98770-8241 · contato@mobiefinanceira.com.br</div>
+        <div class="rod-emp" id="d-contrato"></div>
         <div class="rod-reg">Consórcio regido pela Lei nº 11.795/2008, sob fiscalização do Banco Central do Brasil. Esta é uma simulação e não constitui oferta nem contrato: taxas, prazos, crédito e contemplação estão sujeitos às regras do grupo e à confirmação da administradora.</div>
+        <div class="rod-contemp">Esta proposta não garante nenhum tipo de contemplação.</div>
       </div>
 
     </div>
@@ -423,8 +444,14 @@ function gerarDocumento(){
   const creditoPos=credito-valEmbutido;
   const parcelasRestantes=Math.max(prazo-parcelasPagas,1);
 
-  const qtdDiluidoNoPrazo=Math.round((creditoPos*(1+taxaAdm))/parcelaInicial);
-  const valorDiluicaoParcela=Math.max((creditoPos*(1+taxaAdm)-valProprio*(1+taxaAdm))/parcelasRestantes,0);
+  // O lance abate o saldo devedor na mesma proporção do crédito (crédito + taxas).
+  const valPagas=parcelaInicial*parcelasPagas;
+  const saldo=Math.max(totalBruto-valPagas,0);
+  const abateEmb=valEmbutido*(1+taxaAdm);
+  const abateProp=valProprio*(1+taxaAdm);
+  const saldoPos=Math.max(saldo-abateEmb-abateProp,0);
+  const qtdDiluidoNoPrazo=Math.ceil(saldoPos/parcelaInicial);
+  const valorDiluicaoParcela=saldoPos/parcelasRestantes;
   const qtdDiluicaoParcela=parcelasRestantes;
 
   dadosAtuais={nome,credito,prazo,parcelasPagas,parcelaInicial,planoNome,
@@ -456,22 +483,29 @@ function gerarDocumento(){
   document.getElementById('d-qtd-diluicao').textContent=qtdDiluicaoParcela;
   document.getElementById('d-val-diluicao').textContent=fmt(valorDiluicaoParcela);
 
-  // Abatimento: o lance amortiza o saldo devedor na mesma proporção do crédito
-  // (lance de X% do crédito abate X% do valor total do plano).
-  const saldo=parcelaInicial*parcelasRestantes;
-  const niveis=[10,20,30,40,50];
-  if(pctTotal>0&&!niveis.includes(Math.round(pctTotal*100)/100))niveis.push(pctTotal);
-  niveis.sort((a,b)=>a-b);
-  document.getElementById('d-abat').innerHTML=niveis.map(p=>{
-    const lanceVal=credito*p/100;
-    const abate=totalBruto*p/100;
-    const nova=Math.max(saldo-abate,0)/parcelasRestantes;
-    const prazoNovo=Math.max(Math.ceil((saldo-abate)/parcelaInicial),0);
-    const sel=Math.abs(p-pctTotal)<0.0001?' class="sel"':'';
-    return `<tr${sel}><td class="pct">${p.toLocaleString('pt-BR',{maximumFractionDigits:2})}%</td><td>${fmt(lanceVal)}</td><td class="nova">${fmt(nova)}</td><td class="eco">− ${fmt(parcelaInicial-nova)}</td><td>${prazoNovo}x</td></tr>`;
-  }).join('');
+  const set=(id,v)=>document.getElementById(id).textContent=v;
+  set('dm-credito',fmt(credito));
+  set('dm-total',fmt(totalBruto));
+  set('dm-pagas',`${parcelasPagas}x — ${fmt(valPagas)}`);
+  set('dm-saldo',fmt(saldo));
+  set('dm-emb',fmt(abateEmb));
+  set('dm-prop',fmt(abateProp));
+  set('dm-saldo-pos',fmt(saldoPos));
+  set('dm-liberado',fmt(creditoPos));
+  set('dm-op-parcela',`${parcelasRestantes}x de ${fmt(valorDiluicaoParcela)}`);
+  set('dm-op-prazo',`${qtdDiluidoNoPrazo}x de ${fmt(parcelaInicial)}`);
+  const st=document.getElementById('dm-status');
+  const dentro=parcelasPagas+qtdDiluidoNoPrazo<=prazo&&pctTotal<100;
+  st.className='demo-ok '+(dentro?'ok':'fora');
+  st.textContent=dentro
+    ?`✓ Diluição dentro do prazo do grupo (${prazo} meses).`
+    :`✗ Fora dos critérios: o lance não pode passar de 100% nem a diluição ultrapassar ${prazo} meses.`;
 
   const num=now.getFullYear().toString()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+'-'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
+  const emp=document.getElementById('empresaContrato').value.trim();
+  const cnpj=document.getElementById('cnpjContrato').value.trim();
+  document.getElementById('d-contrato').textContent=[emp,cnpj&&('CNPJ '+cnpj)].filter(Boolean).join(' · ');
+
   document.getElementById('d-numero').textContent=num;
   document.getElementById('d-emissao').textContent=now.toLocaleDateString('pt-BR')+' às '+now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 
@@ -504,7 +538,7 @@ window.addEventListener('popstate',function(e){
 });
 
 // Memória dos últimos valores digitados
-const CAMPOS_SALVOS=['nome','credito','prazo','taxaAdm','planoNome','parcelasPagas','pctEmbutido','pctProprio','entradaQtd'];
+const CAMPOS_SALVOS=['nome','credito','prazo','taxaAdm','planoNome','parcelasPagas','pctEmbutido','pctProprio','entradaQtd','empresaContrato','cnpjContrato'];
 function salvarCampos(){
   const dados={};
   CAMPOS_SALVOS.forEach(id=>{const el=document.getElementById(id);if(el)dados[id]=el.value;});
@@ -532,7 +566,7 @@ async function compartilhar(){
   if(!dadosAtuais){toast('Gere a simulação primeiro.');return;}
   const d=dadosAtuais;
   const texto=
-`📊 SIMULAÇÃO DE CONSÓRCIO — Mobie Soluções Financeiras
+`📊 SIMULAÇÃO DE CONSÓRCIO
 Cliente: ${d.nome}
 Plano: ${d.planoNome}
 
