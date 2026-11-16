@@ -476,6 +476,7 @@ svg{display:block;}
           <div class="campo"><label>CDI (% a.a.)</label><input type="number" id="b-cdi" step="0.01"></div>
           <div class="campo"><label>% do CDI</label><input type="number" id="b-pcdi"></div>
           <div class="campo full"><label>Meta de vendas do mês (cartas)</label><input type="number" id="b-meta"></div>
+          <label class="full" style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600"><input type="checkbox" id="b-som" style="width:20px;height:20px"> Som ao ligar e desligar o microfone (e vibração no celular)</label>
         </div>
         <button class="btn" onclick="cfgSalvar()">Salvar</button>
         <div class="row"><button class="btn ghost" onclick="backupExp()">Exportar backup</button><button class="btn ghost" onclick="document.getElementById('bk-in').click()">Importar backup</button></div>
@@ -580,7 +581,7 @@ const store = {
   set(k, v) { try { localStorage.setItem('mc_' + k, JSON.stringify(v)); } catch (e) { toast('Sem espaço para salvar neste aparelho.'); } if (nuvem && CHAVES_NUVEM.includes(k)) nuvem.agendar(); }
 };
 const BRAND0 = { nome: 'Mobie', cor: '#1A4C8B', tel: '', email: '', logo: '', empresa: '', cnpj: '' };
-const CFG0 = { taxaAm: 1.99, prazoFin: 60, cdi: 14.5, pctCdi: 100, meta: 5 };
+const CFG0 = { taxaAm: 1.99, prazoFin: 60, cdi: 14.5, pctCdi: 100, meta: 5, som: true };
 let brand = Object.assign({}, BRAND0, store.get('brand', {}));
 let cfg = Object.assign({}, CFG0, store.get('cfg', {}));
 let leads = store.get('leads', []);
@@ -1051,11 +1052,11 @@ async function cartaCompartilhar() {
 /* ═══════════════════════ CONFIGURAÇÕES / BACKUP ═══════════════════════ */
 function cfgPreencher() {
   $('b-nome').value = brand.nome; $('b-tel').value = brand.tel; $('b-email').value = brand.email; $('b-cor').value = brand.cor; $('b-emp').value = brand.empresa; $('b-cnpj').value = brand.cnpj;
-  $('b-taxaam').value = cfg.taxaAm; $('b-prazofin').value = cfg.prazoFin; $('b-cdi').value = cfg.cdi; $('b-pcdi').value = cfg.pctCdi; $('b-meta').value = cfg.meta;
+  $('b-taxaam').value = cfg.taxaAm; $('b-prazofin').value = cfg.prazoFin; $('b-cdi').value = cfg.cdi; $('b-pcdi').value = cfg.pctCdi; $('b-meta').value = cfg.meta; $('b-som').checked = cfg.som !== false;
 }
 function cfgSalvar() {
   Object.assign(brand, { nome: $('b-nome').value.trim() || 'Mobie', tel: $('b-tel').value.trim(), email: $('b-email').value.trim(), cor: $('b-cor').value, empresa: $('b-emp').value.trim(), cnpj: $('b-cnpj').value.trim() });
-  Object.assign(cfg, { taxaAm: parseFloat($('b-taxaam').value) || CFG0.taxaAm, prazoFin: parseInt($('b-prazofin').value) || CFG0.prazoFin, cdi: parseFloat($('b-cdi').value) || CFG0.cdi, pctCdi: parseFloat($('b-pcdi').value) || CFG0.pctCdi, meta: parseInt($('b-meta').value) || 0 });
+  Object.assign(cfg, { taxaAm: parseFloat($('b-taxaam').value) || CFG0.taxaAm, prazoFin: parseInt($('b-prazofin').value) || CFG0.prazoFin, cdi: parseFloat($('b-cdi').value) || CFG0.cdi, pctCdi: parseFloat($('b-pcdi').value) || CFG0.pctCdi, meta: parseInt($('b-meta').value) || 0, som: $('b-som').checked });
   store.set('brand', brand); store.set('cfg', cfg); aplicarMarca(); $('top-nome').textContent = brand.nome === 'Mobie' ? 'Mobie' : brand.nome; $('c-taxaam').value = ''; toast('Salvo.');
 }
 $('b-logo').addEventListener('change', e => {
@@ -1102,7 +1103,24 @@ $('apres').addEventListener('touchend', e => { if (tx0 == null) return; const dx
 
 /* ═══════════════════════ CENA — assistente por voz ═══════════════════════ */
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let rec = null, ouvindo = false, pend = null;
+let rec = null, ouvindo = false, pend = null, ctxSom = null;
+// Sons curtos gerados na hora (sem arquivos): subindo = começou a gravar; descendo = parou.
+function tocarSom(tipo) {
+  if (cfg.som === false) return;
+  try {
+    ctxSom = ctxSom || new (window.AudioContext || window.webkitAudioContext)();
+    if (ctxSom.state === 'suspended') ctxSom.resume();
+    const t = ctxSom.currentTime;
+    const notas = tipo === 'ini' ? [[660, 0], [990, .09]] : [[880, 0], [520, .09]];
+    notas.forEach(([freq, d]) => {
+      const o = ctxSom.createOscillator(), g = ctxSom.createGain();
+      o.type = 'sine'; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t + d); g.gain.linearRampToValueAtTime(.2, t + d + .012); g.gain.exponentialRampToValueAtTime(.001, t + d + .11);
+      o.connect(g); g.connect(ctxSom.destination); o.start(t + d); o.stop(t + d + .13);
+    });
+    if (navigator.vibrate) navigator.vibrate(tipo === 'ini' ? 25 : [15, 40, 15]);
+  } catch (e) { }
+}
 const SUGESTOES = ['Proposta pro Rafael, carta de 250 mil.', 'Propostas para Ana, Bia e Caio: 200, 300 e 400 mil', 'Compara a proposta da Juliana com financiamento na Price', 'Monta o comparativo do Otávio com renda fixa', 'A Juliana gostou, vai conversar com o marido. Me lembra de ligar quinta às 10.', 'Proposta de imóvel pra Carla, 400 mil, lance de 40%'];
 function msg(txt, quem, acoes) {
   const d = document.createElement('div'); d.className = 'msg ' + (quem === 'u' ? 'u' : 'c'); d.textContent = txt;
@@ -1132,9 +1150,10 @@ function cenaMic() {
   rec.onresult = e => { let interim = ''; for (let i = e.resultIndex; i < e.results.length; i++) { const t = e.results[i][0].transcript; if (e.results[i].isFinal) final += t; else interim += t; } $('cena-txt').value = (final + interim).trim(); };
   rec.onerror = e => { cenaParar(); if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast('Permita o uso do microfone para gravar.'); else if (e.error === 'no-speech') toast('Não ouvi nada. Tente de novo.'); else toast('Falha no microfone: ' + e.error); };
   rec.onend = () => { const t = (final || $('cena-txt').value).trim(); cenaParar(); if (t) { $('cena-txt').value = ''; cenaProcessar(t); } };
+  tocarSom('ini');   // dentro do toque do usuário, para o navegador liberar o áudio
   try { rec.start(); } catch (e) { cenaParar(); }
 }
-function cenaParar() { try { rec && rec.stop(); } catch (e) { } ouvindo = false; $('cena-mic').classList.remove('rec'); $('cena-ouv').classList.add('hide'); }
+function cenaParar() { try { rec && rec.stop(); } catch (e) { } if (ouvindo) tocarSom('fim'); ouvindo = false; $('cena-mic').classList.remove('rec'); $('cena-ouv').classList.add('hide'); }
 const conhecidos = () => [...new Set([...leads.map(l => l.nome), ...props.map(p => p.nome)])];
 
 let iaHist = [];
