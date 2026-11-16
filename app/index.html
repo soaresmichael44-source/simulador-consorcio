@@ -252,6 +252,20 @@ svg{display:block;}
 .cmp-box b.n{display:block;font-size:18px;font-weight:800;color:var(--txt);font-variant-numeric:tabular-nums;}
 .cmp-box .pq{display:block;margin-top:6px;color:var(--sub);line-height:1.5;}
 
+/* login */
+.login{position:fixed;inset:0;z-index:500;background:radial-gradient(120% 90% at 50% 20%,#1A54F0 0%,#0B2A8A 55%,#061A5C 100%);display:none;align-items:center;justify-content:center;overflow-y:auto;padding:20px;}
+.login.on{display:flex;}
+.login .box{width:100%;max-width:400px;background:#fff;border-radius:22px;padding:26px 22px;display:flex;flex-direction:column;gap:14px;box-shadow:0 24px 60px rgba(0,0,0,.35);}
+.login .tile{width:68px;height:68px;margin:0 auto;}
+.login h2{text-align:center;font-size:19px;font-weight:800;color:var(--app-dk);}
+.login p.s{text-align:center;font-size:12.5px;color:var(--sub);margin-top:-6px;}
+.login .erro{font-size:12.5px;font-weight:600;padding:9px 12px;border-radius:var(--r-sm);background:var(--verm-cl);color:var(--verm);}
+.login .ok{font-size:12.5px;font-weight:600;padding:9px 12px;border-radius:var(--r-sm);background:var(--verde-cl);color:var(--verde);}
+.login .lk{font-size:13px;font-weight:700;color:var(--app);text-align:center;padding:6px;}
+.login .lk.mudo{color:var(--sub);font-weight:600;}
+.conta-st{display:flex;align-items:center;gap:8px;font-size:13px;}
+.conta-st i{width:9px;height:9px;border-radius:50%;background:#C6CBD8;flex-shrink:0;}
+.conta-st i.on{background:#19A463;}
 #printArea{display:none;}
 @media print{
   @page{size:A4;margin:8mm 10mm;}
@@ -431,6 +445,16 @@ svg{display:block;}
       </div>
     </div>
 
+    <div class="card" id="conta-card">
+      <div class="ch">Conta e IA</div>
+      <div class="cb">
+        <div class="conta-st"><i id="ct-led"></i><span id="ct-st">Sem conta — dados só neste aparelho.</span></div>
+        <div class="nota" id="ct-ia">Entre na sua conta para a CENA usar inteligência artificial e para sincronizar seus dados entre aparelhos.</div>
+        <button class="btn" id="ct-entrar" onclick="nuvem.mostrarLogin()">Entrar ou criar conta</button>
+        <button class="btn ghost hide" id="ct-sair" onclick="nuvem.sair()">Sair da conta</button>
+      </div>
+    </div>
+
     <div class="card" id="cfg-card">
       <div class="ch">Sua marca e preferências</div>
       <div class="cb">
@@ -517,9 +541,27 @@ svg{display:block;}
   </div>
 </div>
 
+<!-- LOGIN -->
+<div class="login" id="login">
+  <form class="box" id="lg-form" onsubmit="return nuvem.enviar(event)">
+    <div class="tile" id="lg-tile"></div>
+    <h2 id="lg-tit">Entrar no Mobie Cenário</h2>
+    <p class="s" id="lg-sub">Seus clientes e propostas ficam salvos na sua conta, em qualquer aparelho.</p>
+    <div id="lg-msg"></div>
+    <div class="campo" id="lg-c-email"><label>E-mail</label><input type="email" id="lg-email" autocomplete="username" inputmode="email" required></div>
+    <div class="campo"><label id="lg-l-senha">Senha</label><input type="password" id="lg-senha" autocomplete="current-password" minlength="6" required></div>
+    <button class="btn" type="submit" id="lg-ok">Entrar</button>
+    <button class="lk" type="button" id="lg-alt" onclick="nuvem.alternar()">Criar conta</button>
+    <button class="lk mudo" type="button" id="lg-rec" onclick="nuvem.recuperar()">Esqueci minha senha</button>
+    <button class="lk mudo" type="button" id="lg-local" onclick="nuvem.semConta()">Usar sem conta (só neste aparelho)</button>
+  </form>
+</div>
+
 <div class="toast" id="toast"></div>
 <div id="printArea"></div>
 
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="calc.js"></script>
 <script src="cena-nlu.js"></script>
 <script>
@@ -529,9 +571,11 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 /* ───────── armazenamento local ───────── */
+let nuvem = null; // módulo de login/sincronização/IA (definido mais abaixo)
+const CHAVES_NUVEM = ['leads', 'props', 'multi', 'brand', 'cfg'];
 const store = {
   get(k, d) { try { const v = localStorage.getItem('mc_' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-  set(k, v) { try { localStorage.setItem('mc_' + k, JSON.stringify(v)); } catch (e) { toast('Sem espaço para salvar neste aparelho.'); } }
+  set(k, v) { try { localStorage.setItem('mc_' + k, JSON.stringify(v)); } catch (e) { toast('Sem espaço para salvar neste aparelho.'); } if (nuvem && CHAVES_NUVEM.includes(k)) nuvem.agendar(); }
 };
 const BRAND0 = { nome: 'Mobie', cor: '#1A4C8B', tel: '', email: '', logo: '', empresa: '', cnpj: '' };
 const CFG0 = { taxaAm: 1.99, prazoFin: 60, cdi: 14.5, pctCdi: 100, meta: 5 };
@@ -1091,9 +1135,66 @@ function cenaMic() {
 function cenaParar() { try { rec && rec.stop(); } catch (e) { } ouvindo = false; $('cena-mic').classList.remove('rec'); $('cena-ouv').classList.add('hide'); }
 const conhecidos = () => [...new Set([...leads.map(l => l.nome), ...props.map(p => p.nome)])];
 
-function cenaProcessar(texto) {
+let iaHist = [];
+async function cenaProcessar(texto) {
   msg(texto, 'u');
+  if (nuvem && nuvem.user && nuvem.iaOk) {
+    pend = null;
+    const aguarde = msg('…', 'c');
+    try {
+      const resp = await nuvem.perguntarIA(texto);
+      aguarde.remove();
+      iaHist.push({ role: 'user', content: texto });
+      const falou = cenaExecutarIA(resp, texto);
+      iaHist.push({ role: 'assistant', content: (falou || resp.texto || 'Feito.').slice(0, 1400) });
+      iaHist = iaHist.slice(-8);
+      return;
+    } catch (e) {
+      aguarde.remove();
+      if (e.codigo === 'limite') msg('Você atingiu o limite diário da IA. Sigo com o modo por regras até amanhã.', 'c');
+      else if (e.codigo === 'sem_chave') nuvem.iaOk = false;
+      else if (e.codigo === 'nao_autenticado') { msg('Sua sessão expirou. Entre de novo para usar a IA.', 'c'); }
+      else msg('A IA está indisponível agora. Usei o modo por regras.', 'c');
+    }
+  }
   try { cenaDecidir(texto); } catch (e) { console.error(e); msg('Algo deu errado ao interpretar esse pedido. Tente reformular.', 'c'); }
+}
+const numOk = (v, min, max) => (typeof v === 'number' && isFinite(v) && v >= min && v <= max) ? v : undefined;
+// Executa as ações escolhidas pela IA. Tudo que vem do modelo é validado antes de virar dado do app.
+function cenaExecutarIA(resp, textoOriginal) {
+  const acoes = Array.isArray(resp.acoes) ? resp.acoes : [];
+  let perguntou = '';
+  if (!acoes.length) { msg(resp.texto || 'Não entendi. Pode repetir de outro jeito?', 'c'); return resp.texto || ''; }
+  for (const a of acoes) {
+    if (a.acao === 'perguntar' && typeof a.pergunta === 'string') { msg(a.pergunta.slice(0, 400), 'c'); perguntou = a.pergunta; }
+    else if (a.acao === 'criar_propostas') {
+      const itens = (Array.isArray(a.itens) ? a.itens : []).slice(0, 10)
+        .filter(i => i && typeof i.nome === 'string' && i.nome.trim() && numOk(i.credito, 1000, 1e9))
+        .map(i => ({ nome: i.nome.trim().slice(0, 80), credito: i.credito }));
+      if (!itens.length) { msg('Não consegui identificar cliente e valor. Pode repetir?', 'c'); continue; }
+      const cat = CATEGORIAS[a.categoria] ? a.categoria : (CATEGORIAS[simCat] ? simCat : 'auto');
+      const base = padraoCat(cat);
+      base.prazo = numOk(a.prazo, 1, 400) ? Math.round(a.prazo) : base.prazo;
+      const tx = numOk(a.taxa_adm_pct, 0, 100); if (tx !== undefined) base.taxa = tx;
+      const em = numOk(a.lance_embutido_pct, 0, 99), pr = numOk(a.lance_proprio_pct, 0, 99);
+      if (em !== undefined) base.pctEmb = em; if (pr !== undefined) base.pctProp = pr;
+      const en = numOk(a.entrada, 0, 1e9); if (en) base.entrada = en;
+      const mes = numOk(a.mes_contemplacao, 0, base.prazo);
+      if (mes === undefined) { msg('Em que mês você quer simular a contemplação?', 'c'); perguntou = 'Em que mês você quer simular a contemplação?'; continue; }
+      cenaFazerPropostas({ itens, base, mes: Math.round(mes) });
+    }
+    else if (a.acao === 'comparar') {
+      const pr = typeof a.nome === 'string' ? propPorNome(a.nome) : null;
+      if (!pr) { msg(`Não achei proposta de ${a.nome || 'esse cliente'}. Gere a proposta primeiro.`, 'c'); continue; }
+      cenaComparar(a.tipo === 'renda_fixa' ? 'rf' : 'fin', pr, { sistema: a.sistema === 'price' ? 'price' : a.sistema === 'sac' ? 'sac' : undefined, taxaAm: numOk(a.taxa_am_pct, 0.01, 20), cdi: numOk(a.cdi_aa_pct, 0.1, 100), pctCdi: numOk(a.pct_cdi, 1, 300) });
+    }
+    else if (a.acao === 'atualizar_crm' && typeof a.nome === 'string' && a.nome.trim()) {
+      const ret = typeof a.retorno_iso === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(a.retorno_iso) ? new Date(a.retorno_iso) : null;
+      cenaCRM({ nomes: [a.nome.trim().slice(0, 80)], etapa: ETAPAS.includes(a.etapa) ? a.etapa : undefined, retorno: ret && !isNaN(ret) ? ret : null, telefone: soDig(a.telefone).slice(0, 13) || undefined, texto: (typeof a.anotacao === 'string' && a.anotacao.trim() ? a.anotacao.trim() : textoOriginal).slice(0, 600) });
+    }
+    else if (a.acao === 'abrir_tela' && TELAS.includes(a.tela)) { fecharCena(); irPara(a.tela); }
+  }
+  return perguntou;
 }
 function cenaDecidir(texto) {
   // resposta a uma pergunta pendente
@@ -1174,8 +1275,181 @@ function cenaCRM(r) {
   msg(feitos.length ? 'Anotado. ' + feitos.map((f, i) => i ? f : f[0].toUpperCase() + f.slice(1)).join(', ').replace(/, ([^,]*)$/, ' e $1') + '.' : 'Atualizei o cadastro.', 'c', [['Abrir no CRM', () => { fecharCena(); irPara('crm'); leadForm(l.id); }]]);
 }
 
+/* ═══════════════════════ LOGIN, SINCRONIZAÇÃO E IA (Supabase) ═══════════════════════ */
+nuvem = {
+  cli: null, user: null, iaOk: true, modo: 'entrar', status: '', timer: null, sig: { leads: {}, props: {} },
+  disponivel() { return !!this.cli; },
+  init() {
+    const c = window.MOBIE_CLOUD;
+    if (!window.supabase || !c) { this.painel(); return; }          // offline ou sem biblioteca: modo local
+    this.cli = window.supabase.createClient(c.url, c.key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+    this.cli.auth.onAuthStateChange((ev, s) => setTimeout(() => this.sessao(ev, s), 0));
+  },
+  async sessao(ev, s) {
+    if (ev === 'PASSWORD_RECOVERY') { this.modo = 'nova'; this.mostrarLogin(); return; }
+    if (s && s.user) {
+      const mudou = !this.user || this.user.id !== s.user.id;
+      this.user = s.user;
+      if (mudou) { this.fecharLogin(); await this.entrar(); }
+      this.painel(); return;
+    }
+    this.user = null; this.painel();
+    let local = false; try { local = sessionStorage.getItem('mc_local') === '1'; } catch (e) { }
+    if (ev === 'SIGNED_OUT' || (ev === 'INITIAL_SESSION' && !local)) this.mostrarLogin();
+  },
+  async entrar() {
+    // outro usuário neste aparelho: não mistura os dados
+    const ultimo = store.get('uid', null);
+    if (ultimo && ultimo !== this.user.id) this.limparLocal();
+    store.set('uid', this.user.id);
+    try {
+      if (store.get('pend', false)) await this.empurrar();   // edições feitas sem conexão sobem primeiro
+      await this.puxar();
+      this.status = 'Sincronizado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      toast('Conta conectada. Dados sincronizados.');
+    } catch (e) { console.error(e); this.status = 'Falha ao sincronizar — tentarei de novo.'; store.set('pend', true); }
+    this.refazerTela();
+  },
+  limparLocal() {
+    try { Object.keys(localStorage).filter(k => k.startsWith('mc_') && k !== 'mc_splash').forEach(k => localStorage.removeItem(k)); } catch (e) { }
+    leads = []; props = []; multi = []; brand = Object.assign({}, BRAND0); cfg = Object.assign({}, CFG0); this.sig = { leads: {}, props: {} };
+  },
+  refazerTela() {
+    aplicarMarca(); cfgPreencher(); simRestaurar(); renderHome(); renderMulti(); renderApSel();
+    if ($('v-crm').classList.contains('on')) renderCRM();
+    $('top-nome').textContent = brand.nome === 'Mobie' ? 'Mobie Cenário' : brand.nome;
+  },
+  async puxar() {
+    const [L, P, F] = await Promise.all([
+      this.cli.from('leads').select('id,dados'),
+      this.cli.from('propostas').select('id,dados').order('atualizado', { ascending: false }).limit(200),
+      this.cli.from('perfil').select('marca,cfg,multi').maybeSingle()
+    ]);
+    if (L.error || P.error || F.error) throw (L.error || P.error || F.error);
+    const prev = store.get('cloudIds', { leads: [], props: [] });
+    // nuvem vence conflitos; item só local entra se for novo (não conhecido da nuvem) — se a nuvem já o conhecia e sumiu, foi apagado em outro aparelho
+    const unir = (local, rows, antes) => { const na = new Set(rows.map(r => r.id)); const out = rows.map(r => r.dados); local.forEach(l => { if (!na.has(l.id) && !antes.includes(l.id)) out.push(l); }); return out; };
+    leads = unir(leads, L.data, prev.leads).sort((a, b) => String(b.criado || '').localeCompare(String(a.criado || '')));
+    props = unir(props, P.data, prev.props).sort((a, b) => String(b.criado || '').localeCompare(String(a.criado || ''))).slice(0, 100);
+    if (F.data) { brand = Object.assign({}, BRAND0, F.data.marca || {}); cfg = Object.assign({}, CFG0, F.data.cfg || {}); if (Array.isArray(F.data.multi)) multi = F.data.multi; }
+    this.sig = { leads: {}, props: {} };
+    L.data.forEach(r => this.sig.leads[r.id] = JSON.stringify(r.dados)); P.data.forEach(r => this.sig.props[r.id] = JSON.stringify(r.dados));
+    store.set('cloudIds', { leads: L.data.map(r => r.id), props: P.data.map(r => r.id) });
+    store.set('brand', brand); store.set('cfg', cfg); salvarTudo();
+  },
+  agendar() { if (!this.user) return; this.status = 'Sincronizando…'; this.painel(); clearTimeout(this.timer); this.timer = setTimeout(() => this.empurrar().catch(() => { }), 1500); },
+  async empurrar() {
+    if (!this.cli || !this.user) return;
+    const uid = this.user.id, agora = new Date().toISOString();
+    try {
+      for (const [tab, lista, chave] of [['leads', leads, 'leads'], ['propostas', props, 'props']]) {
+        const mudados = lista.filter(x => this.sig[chave][x.id] !== JSON.stringify(x)).map(x => ({ user_id: uid, id: x.id, dados: x, atualizado: agora }));
+        for (let i = 0; i < mudados.length; i += 50) {
+          const { error } = await this.cli.from(tab).upsert(mudados.slice(i, i + 50), { onConflict: 'user_id,id' });
+          if (error) throw error;
+        }
+        mudados.forEach(m => this.sig[chave][m.id] = JSON.stringify(m.dados));
+        const ids = new Set(lista.map(x => x.id));
+        const apagar = Object.keys(this.sig[chave]).filter(id => !ids.has(id));
+        if (apagar.length) { const { error } = await this.cli.from(tab).delete().in('id', apagar); if (error) throw error; apagar.forEach(id => delete this.sig[chave][id]); }
+      }
+      const { error } = await this.cli.from('perfil').upsert({ user_id: uid, marca: brand, cfg, multi, atualizado: agora }, { onConflict: 'user_id' });
+      if (error) throw error;
+      store.set('cloudIds', { leads: Object.keys(this.sig.leads), props: Object.keys(this.sig.props) });
+      store.set('pend', false);
+      this.status = 'Sincronizado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } catch (e) { console.error(e); store.set('pend', true); this.status = 'Sem conexão — salvo no aparelho, sincronizo depois.'; this.painel(); throw e; }
+    this.painel();
+  },
+  async perguntarIA(texto) {
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    const ctx = {
+      hoje: `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`,
+      dia_semana: d.toLocaleDateString('pt-BR', { weekday: 'long' }),
+      clientes: conhecidos().slice(0, 80),
+      propostas: props.slice(0, 10).map(x => ({ nome: x.nome, credito: x.credito, categoria: x.cat, prazo: x.prazo, taxa_adm_pct: x.taxa }))
+    };
+    const { data, error } = await this.cli.functions.invoke('cena', { body: { mensagens: [...iaHist, { role: 'user', content: texto.slice(0, 1500) }], contexto: ctx } });
+    if (error) {
+      let cod = 'falha';
+      try { const j = await error.context.json(); cod = j.erro || cod; } catch (e) { }
+      const err = new Error(cod); err.codigo = cod; throw err;
+    }
+    if (!data || data.erro) { const err = new Error('falha'); err.codigo = (data && data.erro) || 'falha'; throw err; }
+    return data;
+  },
+  /* ── telas ── */
+  mostrarLogin() { this.ajustarForm(); $('login').classList.add('on'); },
+  fecharLogin() { $('login').classList.remove('on'); $('lg-senha').value = ''; this.aviso(''); },
+  aviso(txt, ok) { $('lg-msg').innerHTML = txt ? `<div class="${ok ? 'ok' : 'erro'}">${esc(txt)}</div>` : ''; },
+  ajustarForm() {
+    const m = this.modo, nova = m === 'nova', cria = m === 'criar';
+    $('lg-tit').textContent = nova ? 'Defina a nova senha' : cria ? 'Criar sua conta' : 'Entrar no Mobie Cenário';
+    $('lg-sub').textContent = nova ? 'Escolha uma senha com pelo menos 6 caracteres.' : 'Seus clientes e propostas ficam salvos na sua conta, em qualquer aparelho.';
+    $('lg-c-email').classList.toggle('hide', nova); $('lg-email').required = !nova;
+    $('lg-l-senha').textContent = nova ? 'Nova senha' : 'Senha';
+    $('lg-senha').autocomplete = nova || cria ? 'new-password' : 'current-password';
+    $('lg-ok').textContent = nova ? 'Salvar nova senha' : cria ? 'Criar conta' : 'Entrar';
+    $('lg-alt').textContent = cria ? 'Já tenho conta' : 'Criar conta'; $('lg-alt').classList.toggle('hide', nova);
+    $('lg-rec').classList.toggle('hide', nova || cria); $('lg-local').classList.toggle('hide', nova);
+  },
+  alternar() { this.modo = this.modo === 'criar' ? 'entrar' : 'criar'; this.aviso(''); this.ajustarForm(); },
+  traduzir(msg) {
+    const m = String(msg || '');
+    if (/Invalid login credentials/i.test(m)) return 'E-mail ou senha incorretos.';
+    if (/Email not confirmed/i.test(m)) return 'Confirme seu e-mail pelo link que enviamos antes de entrar.';
+    if (/already registered|already been registered/i.test(m)) return 'Este e-mail já tem conta. Use “Já tenho conta”.';
+    if (/at least 6|Password should/i.test(m)) return 'A senha precisa ter pelo menos 6 caracteres.';
+    if (/rate limit|too many/i.test(m)) return 'Muitas tentativas. Aguarde alguns minutos e tente de novo.';
+    if (/fetch|network/i.test(m)) return 'Sem conexão com a internet.';
+    return 'Não foi possível concluir. Tente novamente.';
+  },
+  async enviar(ev) {
+    ev.preventDefault();
+    if (!this.cli) { this.aviso('Login indisponível agora (sem conexão).'); return false; }
+    const email = $('lg-email').value.trim(), senha = $('lg-senha').value;
+    $('lg-ok').disabled = true; this.aviso('');
+    try {
+      if (this.modo === 'nova') {
+        const { error } = await this.cli.auth.updateUser({ password: senha });
+        if (error) throw error;
+        this.modo = 'entrar'; this.fecharLogin(); toast('Senha atualizada.');
+      } else if (this.modo === 'criar') {
+        const { data, error } = await this.cli.auth.signUp({ email, password: senha, options: { emailRedirectTo: location.origin + location.pathname } });
+        if (error) throw error;
+        if (!data.session) { this.aviso('Enviamos um e-mail de confirmação. Abra o link e depois entre aqui.', true); this.modo = 'entrar'; this.ajustarForm(); }
+      } else {
+        const { error } = await this.cli.auth.signInWithPassword({ email, password: senha });
+        if (error) throw error;
+      }
+    } catch (e) { this.aviso(this.traduzir(e.message)); }
+    $('lg-ok').disabled = false;
+    return false;
+  },
+  async recuperar() {
+    const email = $('lg-email').value.trim();
+    if (!email) { this.aviso('Digite seu e-mail acima e toque de novo em “Esqueci minha senha”.'); return; }
+    const { error } = await this.cli.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+    if (error) this.aviso(this.traduzir(error.message)); else this.aviso('Se o e-mail tiver conta, enviamos o link para redefinir a senha.', true);
+  },
+  semConta() { try { sessionStorage.setItem('mc_local', '1'); } catch (e) { } this.fecharLogin(); },
+  async sair() {
+    if (!confirm('Sair da conta? Seus dados continuam salvos na nuvem; este aparelho será limpo.')) return;
+    try { await this.empurrar(); } catch (e) { if (!confirm('Há alterações que não sincronizaram. Sair mesmo assim e perdê-las neste aparelho?')) return; }
+    await this.cli.auth.signOut();
+    this.limparLocal(); iaHist = []; this.refazerTela();
+  },
+  painel() {
+    const on = !!this.user;
+    $('ct-led').classList.toggle('on', on);
+    $('ct-st').textContent = on ? `${this.user.email}${this.status ? ' · ' + this.status : ''}` : (this.cli ? 'Sem conta — dados só neste aparelho.' : 'Sem conexão com a nuvem — dados só neste aparelho.');
+    $('ct-ia').textContent = on ? (this.iaOk ? 'A CENA usa inteligência artificial: entende pedidos livres, mesmo sem seguir um padrão, e pergunta o que faltar. Há limite diário de pedidos por usuário.' : 'A IA ainda não foi ativada pelo administrador. A CENA segue no modo por regras.') : 'Entre na sua conta para a CENA usar inteligência artificial e para sincronizar seus dados entre aparelhos.';
+    $('ct-entrar').classList.toggle('hide', on || !this.cli); $('ct-sair').classList.toggle('hide', !on);
+  }
+};
+
 /* ═══════════════════════ INICIALIZAÇÃO ═══════════════════════ */
-$('top-tile').innerHTML = tileSVG(); $('splash-tile').innerHTML = tileSVG();
+$('top-tile').innerHTML = tileSVG(); $('splash-tile').innerHTML = tileSVG(); $('lg-tile').innerHTML = tileSVG();
 aplicarMarca(); cfgPreencher(); simRestaurar(); renderHome();
 $('top-nome').textContent = brand.nome === 'Mobie' ? 'Mobie Cenário' : brand.nome;
 let jaViu = false; try { jaViu = sessionStorage.getItem('mc_splash') === '1'; } catch (e) { }
@@ -1183,6 +1457,7 @@ if (jaViu) $('splash').remove(); else setTimeout(fecharSplash, 3200);
 history.replaceState({}, '', location.href);
 window.addEventListener('popstate', () => { if ($('apres').classList.contains('on')) fecharApres(); else if ($('docView').classList.contains('on')) fecharDoc(); else if ($('cena').classList.contains('on')) fecharCena(); });
 ['docView', 'cena'].forEach(id => new MutationObserver(() => { if ($(id).classList.contains('on')) history.pushState({ o: id }, ''); }).observe($(id), { attributes: true, attributeFilter: ['class'] }));
+nuvem.init();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => { });
 </script>
 </body>
