@@ -1,4 +1,4 @@
-/* Interpretação de pedidos em português (voz ou texto) para o assistente CENA.
+/* Interpretação de pedidos em português (voz ou texto) para o assistente Mob.
    Funciona offline, por regras — sem enviar a fala a nenhum serviço de IA.
    Funções puras, testáveis em Node. */
 (function (g) {
