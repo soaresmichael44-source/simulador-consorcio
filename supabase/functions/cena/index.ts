@@ -1,4 +1,4 @@
-// Mob — assistente com IA do app Mobie Cenário (a função mantém o id interno "cena").
+// Mob — assistente com IA do app Mobie (a função mantém o id interno "cena").
 // Recebe a conversa do corretor, pede à IA que escolha ferramentas e devolve as ações
 // para o app executar. As chaves ficam só aqui, como segredos do projeto:
 //   ANTHROPIC_API_KEY (Claude), GROQ_API_KEY (Groq, tem plano gratuito), GEMINI_API_KEY (Gemini).
@@ -207,7 +207,10 @@ Deno.serve(async (req: Request) => {
 
   // --- provedores com chave, na ordem de tentativa (sem nenhum, o app cai no modo por regras) ---
   const chaves: Record<string, string | undefined> = {
-    anthropic: Deno.env.get("ANTHROPIC_API_KEY"), groq: Deno.env.get("GROQ_API_KEY"), gemini: Deno.env.get("GEMINI_API_KEY"),
+    anthropic: Deno.env.get("ANTHROPIC_API_KEY"),
+    // aceita também "GR0Q_API_KEY" (com zero): o segredo foi cadastrado assim por engano no painel
+    groq: Deno.env.get("GROQ_API_KEY") ?? Deno.env.get("GR0Q_API_KEY"),
+    gemini: Deno.env.get("GEMINI_API_KEY"),
   };
   const ordem = (Deno.env.get("IA_PROVIDERS") ?? "anthropic,groq").split(",").map((x) => x.trim()).filter((p) => PROVEDORES[p] && chaves[p]);
   if (diag) return json({ diag: { anthropic: !!chaves.anthropic, groq: !!chaves.groq, gemini: !!chaves.gemini, ia_providers: Deno.env.get("IA_PROVIDERS") ?? null, ordem, limite_diario: LIMITE } });
