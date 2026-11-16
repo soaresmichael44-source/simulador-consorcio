@@ -9,6 +9,9 @@
 <title>Mobie — App do corretor de consórcio</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Mobie">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 :root{
@@ -655,7 +658,7 @@ const salvarTudo = () => { store.set('leads', leads); store.set('props', props);
 /* ───────── navegação ───────── */
 const TELAS = ['home', 'sim', 'comp', 'crm', 'mais'];
 function irPara(t) {
-  if (ouvindo) cenaParar(false);
+  if (ouvindo || gv) cenaParar(false);
   TELAS.forEach(x => { $('v-' + x).classList.toggle('on', x === t); });
   document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
   if (t === 'home') renderHome();
@@ -785,7 +788,7 @@ function textoProposta(p, r) {
 /* visualizador */
 let dv = { itens: [], i: 0 };
 function abrirDocs(itens, i = 0) {
-  if (ouvindo) cenaParar(false);
+  if (ouvindo || gv) cenaParar(false);
   dv = { itens, i };
   const tabs = $('dv-tabs');
   if (itens.length > 1) { tabs.classList.remove('hide'); tabs.innerHTML = itens.map((x, k) => `<button class="chip" data-k="${k}" onclick="dvIr(${k})">${esc(primeiroNome(x.label))}</button>`).join(''); } else tabs.classList.add('hide');
@@ -1141,18 +1144,81 @@ function abrirCena(prefill) {
   if (prefill) { $('cena-txt').value = prefill; }
   setTimeout(() => $('cena-txt').focus(), 150);
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden && ouvindo) cenaParar('manter'); });
-window.addEventListener('pagehide', () => { if (ouvindo) cenaParar(false); });
+document.addEventListener('visibilitychange', () => { if (document.hidden && (ouvindo || gv)) cenaParar('manter'); });
+window.addEventListener('pagehide', () => { if (ouvindo || gv) cenaParar(false); });
+document.addEventListener('freeze', () => { if (ouvindo || gv) cenaParar('manter'); });
 function fecharCena() { cenaParar(); $('cena').classList.remove('on'); }
 function cenaEnviar() { const t = $('cena-txt').value.trim(); if (!t) return; $('cena-txt').value = ''; cenaProcessar(t); }
+/* ── Gravação de áudio (MediaRecorder) + transcrição no servidor ──
+   Só termina quando a pessoa toca de novo: o navegador não decide nada. O microfone é solto
+   (tracks encerradas) ao terminar, ao cancelar, ao sair do app e ao bloquear a tela. */
+let gv = null;
+const suportaAudio = () => !!(nuvem && nuvem.user && nuvem.cli && window.MediaRecorder && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+const mmss = ms => { const t = Math.floor(ms / 1000); return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
+function liberarStream(g) { try { g.stream && g.stream.getTracks().forEach(t => { t.onended = null; t.stop(); }); } catch (e) { } g.stream = null; }
+function interfaceMicOff() { $('cena-mic').classList.remove('rec'); $('cena-ouv').classList.add('hide'); }
+async function gravarAudio() {
+  const g = gv = { stream: null, mr: null, chunks: [], t0: 0, timer: null, parando: false, modo: 'enviar', mime: '', feito: false };
+  ouvindo = true;
+  $('cena-mic').classList.add('rec'); $('cena-ouv').classList.remove('hide'); $('cena-txt').value = '';
+  $('cena-ouv').textContent = '● Gravando 00:00 — toque no microfone para terminar';
+  tocarSom('ini');   // dentro do toque do usuário, para o navegador liberar o áudio
+  try { g.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }); }
+  catch (e) { if (gv === g) { gv = null; ouvindo = false; interfaceMicOff(); toast(e && e.name === 'NotAllowedError' ? 'Permita o uso do microfone para gravar.' : 'Não consegui acessar o microfone.'); } return; }
+  if (gv !== g || g.parando) { liberarStream(g); return; }   // a pessoa cancelou enquanto o navegador pedia permissão
+  const tipos = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm', 'audio/ogg;codecs=opus'];
+  const mime = tipos.find(t => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) || '';
+  try { g.mr = new MediaRecorder(g.stream, mime ? { mimeType: mime, audioBitsPerSecond: 32000 } : undefined); }
+  catch (e) { liberarStream(g); gv = null; ouvindo = false; interfaceMicOff(); toast('Este navegador não consegue gravar áudio.'); return; }
+  g.mime = g.mr.mimeType || mime || 'audio/webm';
+  g.mr.ondataavailable = e => { if (e.data && e.data.size) g.chunks.push(e.data); };
+  g.mr.onstop = () => { if (!g.parando) g.modo = 'manter'; audioConcluido(g); };   // parou por conta do sistema: não envia sozinho
+  g.mr.onerror = () => audioParar('manter');
+  const trilha = g.stream.getAudioTracks()[0]; if (trilha) trilha.onended = () => audioParar('manter');   // microfone desconectado ou permissão retirada
+  g.mr.start(1000); g.t0 = Date.now();
+  g.timer = setInterval(() => {
+    $('cena-ouv').textContent = `● Gravando ${mmss(Date.now() - g.t0)} — toque no microfone para terminar`;
+    if (Date.now() - g.t0 > 600000) { toast('Gravação encerrada após 10 minutos.'); cenaParar(true); }
+  }, 500);
+}
+// modo: 'enviar' (toque para terminar), 'cancelar' (descarta) ou 'manter' (parou por causa do app/sistema: texto fica na caixa)
+function audioParar(modo) {
+  const g = gv; if (!g || g.parando) return;
+  g.parando = true; g.modo = modo; clearInterval(g.timer);
+  ouvindo = false; interfaceMicOff();
+  if (modo !== 'manter') tocarSom('fim');
+  if (g.mr && g.mr.state !== 'inactive') { try { g.mr.stop(); } catch (e) { audioConcluido(g); } } else audioConcluido(g);
+  liberarStream(g);                               // solta o microfone já
+  setTimeout(() => { if (!g.feito) audioConcluido(g); }, 2500);   // garantia se o navegador não avisar o fim
+}
+async function audioConcluido(g) {
+  if (g.feito) return; g.feito = true;
+  clearInterval(g.timer); liberarStream(g); if (gv === g) gv = null; ouvindo = false; interfaceMicOff();
+  if (g.modo === 'cancelar') return;
+  const blob = new Blob(g.chunks, { type: g.mime });
+  if (blob.size < 1500) { toast('Não captei áudio. Tente de novo.'); return; }
+  const aguarde = msg('Transcrevendo o áudio…', 'c');
+  try {
+    const texto = await nuvem.transcrever(blob, g.mime);
+    aguarde.remove();
+    if (!texto) { msg('Não entendi nada nesse áudio. Tente de novo, falando mais perto do microfone.', 'c'); return; }
+    if (g.modo === 'manter') { $('cena-txt').value = texto; toast('Gravação pausada porque você saiu do app. O texto ficou na caixa.', 4500); return; }
+    cenaProcessar(texto);
+  } catch (e) {
+    aguarde.remove();
+    const cod = e && e.codigo;
+    msg(cod === 'limite' ? 'Você atingiu o limite diário de áudios. Digite o pedido por hoje.' : cod === 'limite_provedor' ? 'O limite gratuito de transcrição acabou por agora. Digite o pedido.' : 'Não consegui transcrever o áudio agora. Tente de novo ou digite o pedido.', 'c');
+  }
+}
 const juntar = (a, b) => [a, b].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
 let gr = null; // estado da gravação em andamento
 function liberarMic(r) { if (!r) return; r.onresult = r.onerror = r.onend = null; try { r.stop(); } catch (e) { } try { r.abort(); } catch (e) { } }
 // A gravação só termina quando a pessoa toca de novo no microfone. O navegador encerra a escuta sozinho
 // (silêncio, limite de tempo); nesse caso religamos na hora e continuamos juntando o que foi falado.
 function cenaMic() {
-  if (!SR) { toast('Sem suporte a voz neste navegador — use o microfone do teclado.'); $('cena-txt').focus(); return; }
   if (ouvindo) { cenaParar(true); return; }
+  if (suportaAudio()) { gravarAudio(); return; }   // gravação de áudio de verdade: só termina quando a pessoa toca
+  if (!SR) { toast('Sem suporte a voz neste navegador — use o microfone do teclado.'); $('cena-txt').focus(); return; }
   gr = { antes: '', sessao: '', pediuParar: false, fatal: '', fimTocado: false, inicios: [], timer: null };
   ouvindo = true;
   $('cena-mic').classList.add('rec'); $('cena-ouv').classList.remove('hide'); $('cena-txt').value = '';
@@ -1203,6 +1269,7 @@ function cenaFinalizar() {   // encerra de vez e envia o que foi dito
 // true: a pessoa tocou para terminar (envia). false: cancela sem enviar (ex.: fechar a tela).
 // 'manter': parou por causa do app ir para segundo plano; guarda o texto na caixa, sem enviar.
 function cenaParar(enviar) {
+  if (gv) { audioParar(enviar === 'manter' ? 'manter' : enviar ? 'enviar' : 'cancelar'); return; }
   if (!ouvindo || !gr) return;
   if (enviar) {
     gr.pediuParar = true; gr.fimTocado = true; if (enviar === 'manter') gr.manter = true; else tocarSom('fim');
@@ -1459,6 +1526,14 @@ nuvem = {
     }
     if (!data || data.erro) { const err = new Error('falha'); err.codigo = (data && data.erro) || 'falha'; throw err; }
     return data;
+  },
+  async transcrever(blob, mime) {
+    const ext = /mp4|aac/.test(mime) ? 'm4a' : /ogg/.test(mime) ? 'ogg' : 'webm';
+    const fd = new FormData(); fd.append('audio', blob, 'audio.' + ext);
+    const { data, error } = await this.cli.functions.invoke('transcrever', { body: fd });
+    if (error) { let cod = 'falha'; try { cod = (await error.context.json()).erro || cod; } catch (e) { } const err = new Error(cod); err.codigo = cod; throw err; }
+    if (!data || data.erro) { const err = new Error('falha'); err.codigo = (data && data.erro) || 'falha'; throw err; }
+    return String(data.texto || '').trim();
   },
   /* ── telas ── */
   mostrarLogin() { this.ajustarForm(); $('login').classList.add('on'); },
