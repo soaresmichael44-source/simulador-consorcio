@@ -1,6 +1,10 @@
 // Mob — assistente com IA do app Mobie Cenário (a função mantém o id interno "cena").
-// Recebe a conversa do corretor, pede ao Claude que escolha ferramentas e devolve as ações
-// para o app executar. A chave da Anthropic fica só aqui (segredo ANTHROPIC_API_KEY).
+// Recebe a conversa do corretor, pede à IA que escolha ferramentas e devolve as ações
+// para o app executar. As chaves ficam só aqui, como segredos do projeto:
+//   ANTHROPIC_API_KEY (Claude), GROQ_API_KEY (Groq, tem plano gratuito), GEMINI_API_KEY (Gemini).
+//   IA_PROVIDERS define a ordem de tentativa (padrão "anthropic,groq"). Se um provedor falha ou
+//   estoura o limite, o próximo é tentado. O Gemini só é usado se listado: o plano gratuito dele
+//   usa o conteúdo enviado para melhorar produtos do Google, então não serve para dados de clientes.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -10,6 +14,8 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const MODEL = Deno.env.get("CENA_MODEL") ?? "claude-haiku-5-5";
+const GEMINI_MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-3.8-flash";
+const GROQ_MODEL = Deno.env.get("GROQ_MODEL") ?? "openai/gpt-oss-120b";
 const LIMITE = Number(Deno.env.get("CENA_LIMITE_DIARIO") ?? "60");
 
 const json = (corpo: unknown, status = 200) =>
@@ -103,6 +109,80 @@ Clientes já cadastrados: ${(ctx.clientes ?? []).slice(0, 80).join("; ") || "nen
 Propostas recentes: ${JSON.stringify((ctx.propostas ?? []).slice(0, 15))}`;
 }
 
+type Ctx = { hoje?: string; dia_semana?: string; clientes?: string[]; propostas?: unknown[] };
+type Msg = { role: string; content: string };
+type Resp = { texto: string; acoes: Record<string, unknown>[] };
+class ProvErro extends Error { constructor(public status: number) { super("provedor " + status); } }
+
+async function viaAnthropic(chave: string, ctx: Ctx, msgs: Msg[]): Promise<Resp> {
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({ model: MODEL, max_tokens: 1024, system: sistema(ctx), tools: FERRAMENTAS, tool_choice: { type: "auto" }, messages: msgs }),
+    signal: AbortSignal.timeout(25000),
+  });
+  if (!r.ok) { console.error("anthropic", r.status, (await r.text()).slice(0, 300)); throw new ProvErro(r.status); }
+  const resp = await r.json();
+  const out: Resp = { texto: "", acoes: [] };
+  for (const b of resp.content ?? []) {
+    if (b.type === "text") out.texto += b.text;
+    else if (b.type === "tool_use") out.acoes.push({ ...b.input, acao: b.name });
+  }
+  return out;
+}
+
+// Groq usa o formato OpenAI (chat/completions com tools).
+async function viaGroq(chave: string, ctx: Ctx, msgs: Msg[]): Promise<Resp> {
+  const r = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${chave}`, "content-type": "application/json" },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      messages: [{ role: "system", content: sistema(ctx) }, ...msgs],
+      tools: FERRAMENTAS.map((f) => ({ type: "function", function: { name: f.name, description: f.description, parameters: f.input_schema } })),
+      tool_choice: "auto",
+      reasoning_effort: "low",
+      max_completion_tokens: 2048,
+    }),
+    signal: AbortSignal.timeout(25000),
+  });
+  if (!r.ok) { console.error("groq", r.status, (await r.text()).slice(0, 300)); throw new ProvErro(r.status); }
+  const resp = await r.json();
+  const m = resp.choices?.[0]?.message ?? {};
+  const out: Resp = { texto: typeof m.content === "string" ? m.content : "", acoes: [] };
+  for (const t of m.tool_calls ?? []) {
+    let args: Record<string, unknown> = {};
+    try { args = JSON.parse(t.function?.arguments || "{}"); } catch { continue; }
+    out.acoes.push({ ...args, acao: t.function?.name });
+  }
+  return out;
+}
+
+async function viaGemini(chave: string, ctx: Ctx, msgs: Msg[]): Promise<Resp> {
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
+    method: "POST",
+    headers: { "x-goog-api-key": chave, "content-type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: sistema(ctx) }] },
+      contents: msgs.map((m) => ({ role: m.role === "assistant" ? "model" : "user", parts: [{ text: m.content }] })),
+      tools: [{ functionDeclarations: FERRAMENTAS.map((f) => ({ name: f.name, description: f.description, parameters: f.input_schema })) }],
+      toolConfig: { functionCallingConfig: { mode: "AUTO" } },
+    }),
+    signal: AbortSignal.timeout(25000),
+  });
+  if (!r.ok) { console.error("gemini", r.status, (await r.text()).slice(0, 300)); throw new ProvErro(r.status); }
+  const resp = await r.json();
+  const out: Resp = { texto: "", acoes: [] };
+  for (const p of resp.candidates?.[0]?.content?.parts ?? []) {
+    if (p.thought) continue;
+    if (typeof p.text === "string") out.texto += p.text;
+    else if (p.functionCall) out.acoes.push({ ...(p.functionCall.args ?? {}), acao: p.functionCall.name });
+  }
+  return out;
+}
+
+const PROVEDORES: Record<string, (chave: string, ctx: Ctx, msgs: Msg[]) => Promise<Resp>> = { anthropic: viaAnthropic, groq: viaGroq, gemini: viaGemini };
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (req.method !== "POST") return json({ erro: "metodo" }, 405);
@@ -124,44 +204,27 @@ Deno.serve(async (req: Request) => {
   const { data: u, error: eu } = await supa.auth.getUser();
   if (eu || !u?.user) return json({ erro: "nao_autenticado" }, 401);
 
-  // --- chave da IA (se ainda não cadastrada, o app cai no modo por regras) ---
-  const chave = Deno.env.get("ANTHROPIC_API_KEY");
-  if (!chave) return json({ erro: "sem_chave" }, 503);
+  // --- provedores com chave, na ordem de tentativa (sem nenhum, o app cai no modo por regras) ---
+  const chaves: Record<string, string | undefined> = {
+    anthropic: Deno.env.get("ANTHROPIC_API_KEY"), groq: Deno.env.get("GROQ_API_KEY"), gemini: Deno.env.get("GEMINI_API_KEY"),
+  };
+  const ordem = (Deno.env.get("IA_PROVIDERS") ?? "anthropic,groq").split(",").map((x) => x.trim()).filter((p) => PROVEDORES[p] && chaves[p]);
+  if (!ordem.length) return json({ erro: "sem_chave" }, 503);
 
   // --- limite diário por corretor ---
   const { data: resta, error: er } = await supa.rpc("ia_consumir", { limite: LIMITE });
   if (er) return json({ erro: "limite_indisponivel" }, 500);
   if (resta === -1) return json({ erro: "limite", limite: LIMITE }, 429);
 
-  // --- chamada ao Claude ---
-  let r: Response;
-  try {
-    r = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 1024,
-        system: sistema(corpo.contexto ?? {}),
-        tools: FERRAMENTAS,
-        tool_choice: { type: "auto" },
-        messages: msgs,
-      }),
-      signal: AbortSignal.timeout(25000),
-    });
-  } catch {
-    return json({ erro: "ia_indisponivel" }, 502);
+  // --- tenta cada provedor até um responder ---
+  let ultimo = 0;
+  for (const p of ordem) {
+    try {
+      const r = await PROVEDORES[p](chaves[p]!, corpo.contexto ?? {}, msgs);
+      return json({ texto: r.texto.trim(), acoes: r.acoes, resta, provedor: p });
+    } catch (e) {
+      ultimo = e instanceof ProvErro ? e.status : 0;
+    }
   }
-  if (!r.ok) {
-    console.error("anthropic", r.status, (await r.text()).slice(0, 300));
-    return json({ erro: "ia_indisponivel" }, 502);
-  }
-  const resp = await r.json();
-  const acoes: Record<string, unknown>[] = [];
-  let texto = "";
-  for (const b of resp.content ?? []) {
-    if (b.type === "text") texto += b.text;
-    else if (b.type === "tool_use") acoes.push({ ...b.input, acao: b.name });
-  }
-  return json({ texto: texto.trim(), acoes, resta });
+  return json({ erro: ultimo === 429 ? "limite_provedor" : "ia_indisponivel" }, 502);
 });

@@ -1153,6 +1153,7 @@ async function cenaProcessar(texto) {
       aguarde.remove();
       if (e.codigo === 'limite') msg('Você atingiu o limite diário da IA. Sigo com o modo por regras até amanhã.', 'c');
       else if (e.codigo === 'sem_chave') nuvem.iaOk = false;
+      else if (e.codigo === 'limite_provedor') msg('O limite gratuito da IA acabou por agora. Usei o modo por regras.', 'c');
       else if (e.codigo === 'nao_autenticado') { msg('Sua sessão expirou. Entre de novo para usar a IA.', 'c'); }
       else msg('A IA está indisponível agora. Usei o modo por regras.', 'c');
     }
