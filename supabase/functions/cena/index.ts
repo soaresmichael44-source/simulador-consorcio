@@ -1,4 +1,4 @@
-// CENA — assistente com IA do app Mobie Cenário.
+// Mob — assistente com IA do app Mobie Cenário (a função mantém o id interno "cena").
 // Recebe a conversa do corretor, pede ao Claude que escolha ferramentas e devolve as ações
 // para o app executar. A chave da Anthropic fica só aqui (segredo ANTHROPIC_API_KEY).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -85,7 +85,7 @@ const FERRAMENTAS = [
 ];
 
 function sistema(ctx: { hoje?: string; dia_semana?: string; clientes?: string[]; propostas?: unknown[] }) {
-  return `Você é a CENA, assistente de IA do app do corretor de consórcio da Mobie Soluções Financeiras. Fale em português do Brasil, de forma curta e direta.
+  return `Você é o Mob, assistente de IA do app do corretor de consórcio da Mobie Soluções Financeiras. Fale em português do Brasil, de forma curta e direta.
 
 Você age chamando ferramentas; o app executa. Regras:
 - Nunca invente nome de cliente, valor de carta ou mês de contemplação. Se faltar algum desses dados para gerar uma proposta, chame "perguntar" com uma única pergunta objetiva.

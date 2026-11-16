@@ -318,7 +318,7 @@ svg{display:block;}
     </div>
     <div class="kpis" id="home-kpis"></div>
     <div class="acts">
-      <button class="act cena" onclick="abrirCena()"><div class="ic" data-ic="mic"></div><b>Falar com a CENA</b><span>“Proposta pro Rafael, carta de 250 mil.”</span></button>
+      <button class="act cena" onclick="abrirCena()"><div class="ic" data-ic="mic"></div><b>Falar com o Mob</b><span>“Proposta pro Rafael, carta de 250 mil.”</span></button>
       <button class="act" onclick="irPara('sim')"><div class="ic" data-ic="doc"></div><b>Nova proposta</b><span>Auto, pesados, imóvel e moto</span></button>
       <button class="act" onclick="irPara('comp')"><div class="ic" data-ic="scale"></div><b>Comparar</b><span>Consórcio × financiamento e renda fixa</span></button>
       <button class="act" onclick="irPara('crm')"><div class="ic" data-ic="users"></div><b>CRM</b><span>Funil, retornos e metas</span></button>
@@ -449,7 +449,7 @@ svg{display:block;}
       <div class="ch">Conta e IA</div>
       <div class="cb">
         <div class="conta-st"><i id="ct-led"></i><span id="ct-st">Sem conta — dados só neste aparelho.</span></div>
-        <div class="nota" id="ct-ia">Entre na sua conta para a CENA usar inteligência artificial e para sincronizar seus dados entre aparelhos.</div>
+        <div class="nota" id="ct-ia">Entre na sua conta para o Mob usar inteligência artificial e para sincronizar seus dados entre aparelhos.</div>
         <button class="btn" id="ct-entrar" onclick="nuvem.mostrarLogin()">Entrar ou criar conta</button>
         <button class="btn ghost hide" id="ct-sair" onclick="nuvem.sair()">Sair da conta</button>
       </div>
@@ -486,7 +486,7 @@ svg{display:block;}
   </section>
 </main>
 
-<button class="fab" onclick="abrirCena()" aria-label="Falar com a CENA"><span data-ic="mic"></span></button>
+<button class="fab" onclick="abrirCena()" aria-label="Falar com o Mob"><span data-ic="mic"></span></button>
 
 <nav class="tabbar">
   <button data-t="home" class="on" onclick="irPara('home')"><span data-ic="home"></span>Início</button>
@@ -506,7 +506,7 @@ svg{display:block;}
 
 <!-- CENA -->
 <div class="over" id="cena">
-  <div class="oh"><button onclick="fecharCena()" aria-label="Fechar"><span data-ic="back"></span></button><b>CENA · assistente por voz</b></div>
+  <div class="oh"><button onclick="fecharCena()" aria-label="Fechar"><span data-ic="back"></span></button><b>Mob · assistente por voz</b></div>
   <div class="ob" id="cena-log"></div>
   <div class="ouvindo hide" id="cena-ouv">● Ouvindo… fale agora</div>
   <div class="cena-in">
@@ -933,7 +933,7 @@ function renderCRM() {
   const cont = e => leads.filter(l => l.etapa === e).length;
   $('crm-funil').innerHTML = `<button class="chip ${funilFiltro === '' ? 'on' : ''}" onclick="funil('')">Todos ${leads.length}</button>` + ETAPAS.map(e => `<button class="chip ${funilFiltro === e ? 'on' : ''}" onclick="funil('${e}')">${e} ${cont(e)}</button>`).join('');
   const ret = leads.filter(l => l.retorno && !['Fechado', 'Perdido'].includes(l.etapa) && new Date(l.retorno) < new Date(Date.now() + 7 * 864e5)).sort((a, b) => a.retorno.localeCompare(b.retorno));
-  $('crm-ret').innerHTML = ret.length ? ret.map(l => itemLead(l)).join('') : '<div class="vazio">Nenhum retorno nos próximos 7 dias.<br>Peça à CENA: “Me lembra de ligar pro Carlos quinta às 10”.</div>';
+  $('crm-ret').innerHTML = ret.length ? ret.map(l => itemLead(l)).join('') : '<div class="vazio">Nenhum retorno nos próximos 7 dias.<br>Peça ao Mob: “Me lembra de ligar pro Carlos quinta às 10”.</div>';
   const lst = leads.filter(l => !funilFiltro || l.etapa === funilFiltro);
   $('crm-tit').textContent = funilFiltro || 'Clientes';
   $('crm-lista').innerHTML = lst.length ? lst.map(l => itemLead(l)).join('') : '<div class="vazio">Nenhum cliente aqui ainda.</div>';
@@ -970,7 +970,7 @@ function renderHome() {
   const fimHoje = new Date(); fimHoje.setHours(23, 59, 59, 999);
   const ret = leads.filter(l => l.retorno && !['Fechado', 'Perdido'].includes(l.etapa) && new Date(l.retorno) <= fimHoje).sort((a, b) => a.retorno.localeCompare(b.retorno));
   $('home-ret').innerHTML = ret.length ? ret.map(l => itemLead(l)).join('') : '<div class="vazio">Nada pendente para hoje. 👌</div>';
-  $('home-props').innerHTML = props.length ? props.slice(0, 5).map(p => `<button class="item" onclick="reabrir('${p.id}')"><div class="av">${esc(ini(p.nome))}</div><div class="tx"><b>${esc(p.nome)}</b><span>${CATEGORIAS[p.cat].nome} · ${new Date(p.criado).toLocaleDateString('pt-BR')}</span></div><div class="vl">${fmt(p.credito).replace(',00', '')}</div></button>`).join('') : '<div class="vazio">Nenhuma proposta ainda. Gere a primeira no Simulador ou peça à CENA.</div>';
+  $('home-props').innerHTML = props.length ? props.slice(0, 5).map(p => `<button class="item" onclick="reabrir('${p.id}')"><div class="av">${esc(ini(p.nome))}</div><div class="tx"><b>${esc(p.nome)}</b><span>${CATEGORIAS[p.cat].nome} · ${new Date(p.criado).toLocaleDateString('pt-BR')}</span></div><div class="vl">${fmt(p.credito).replace(',00', '')}</div></button>`).join('') : '<div class="vazio">Nenhuma proposta ainda. Gere a primeira no Simulador ou peça ao Mob.</div>';
 }
 function reabrir(id) { const p = props.find(x => x.id === id); if (p) abrirDocs([docProposta(p)]); }
 
@@ -1110,7 +1110,7 @@ function msg(txt, quem, acoes) {
 function abrirCena(prefill) {
   $('cena').classList.add('on');
   if (!$('cena-log').children.length) {
-    msg('Oi! Eu sou a CENA. Peça por voz ou texto — eu monto propostas, comparativos e atualizo o CRM. Se faltar algum dado, eu pergunto.', 'c');
+    msg('Oi! Eu sou o Mob. Peça por voz ou texto — eu monto propostas, comparativos e atualizo o CRM. Se faltar algum dado, eu pergunto.', 'c');
     const s = document.createElement('div'); s.className = 'sug';
     SUGESTOES.forEach(t => { const b = document.createElement('button'); b.textContent = '“' + t + '”'; b.onclick = () => cenaProcessar(t); s.appendChild(b); });
     $('cena-log').appendChild(s);
@@ -1443,7 +1443,7 @@ nuvem = {
     const on = !!this.user;
     $('ct-led').classList.toggle('on', on);
     $('ct-st').textContent = on ? `${this.user.email}${this.status ? ' · ' + this.status : ''}` : (this.cli ? 'Sem conta — dados só neste aparelho.' : 'Sem conexão com a nuvem — dados só neste aparelho.');
-    $('ct-ia').textContent = on ? (this.iaOk ? 'A CENA usa inteligência artificial: entende pedidos livres, mesmo sem seguir um padrão, e pergunta o que faltar. Há limite diário de pedidos por usuário.' : 'A IA ainda não foi ativada pelo administrador. A CENA segue no modo por regras.') : 'Entre na sua conta para a CENA usar inteligência artificial e para sincronizar seus dados entre aparelhos.';
+    $('ct-ia').textContent = on ? (this.iaOk ? 'O Mob usa inteligência artificial: entende pedidos livres, mesmo sem seguir um padrão, e pergunta o que faltar. Há limite diário de pedidos por usuário.' : 'A IA ainda não foi ativada pelo administrador. O Mob segue no modo por regras.') : 'Entre na sua conta para o Mob usar inteligência artificial e para sincronizar seus dados entre aparelhos.';
     $('ct-entrar').classList.toggle('hide', on || !this.cli); $('ct-sair').classList.toggle('hide', !on);
   }
 };
