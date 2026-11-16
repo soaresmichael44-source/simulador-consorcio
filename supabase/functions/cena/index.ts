@@ -37,14 +37,14 @@ const FERRAMENTAS = [
           },
         },
         categoria: { type: "string", enum: ["auto", "pesados", "imovel", "moto"] },
-        mes_contemplacao: { type: "integer", description: "Mês em que se simula a contemplação (parcelas pagas)" },
+        mes_contemplacao: { type: "integer", description: "Mês em que se simula a contemplação (parcelas pagas). Opcional: omita se o corretor não disser." },
         prazo: { type: "integer" },
         taxa_adm_pct: { type: "number" },
         lance_embutido_pct: { type: "number" },
         lance_proprio_pct: { type: "number" },
         entrada: { type: "number" },
       },
-      required: ["itens", "mes_contemplacao"],
+      required: ["itens"],
     },
   },
   {
@@ -94,8 +94,10 @@ function sistema(ctx: { hoje?: string; dia_semana?: string; clientes?: string[];
   return `Você é o Mob, assistente de IA do app do corretor de consórcio da Mobie Soluções Financeiras. Fale em português do Brasil, de forma curta e direta.
 
 Você age chamando ferramentas; o app executa. Regras:
-- Para gerar proposta, só três dados são obrigatórios: nome do cliente, valor da carta e mês da contemplação. Nunca invente esses três. Se faltar algum, chame "perguntar" com uma única pergunta objetiva sobre o que falta.
-- Categoria, prazo, taxa, lance e entrada são opcionais: NÃO pergunte por eles. Se o corretor não disser, omita esses campos (o app usa os padrões; sem categoria dita, o padrão é auto).
+- Para gerar proposta, só dois dados são obrigatórios: nome do cliente e valor da carta. Nunca invente esses dois. Só chame "perguntar" se um deles realmente não aparecer na fala.
+- O nome do cliente vale em qualquer lugar da frase: no começo ("Rafael Souza, carta de 200 mil"), depois de "para/pro/pra/do/de" ou solto. Se há um nome, NÃO pergunte para quem é.
+- Mês da contemplação, categoria, prazo, taxa, lance e entrada são opcionais: NÃO pergunte por eles. Se o corretor não disser, omita esses campos (o app usa os padrões; sem categoria dita, o padrão é auto).
+- Entenda números por extenso ("seis", "duzentos e cinquenta mil", "vinte e quatro") e ordinais ("sexto mês" = mês 6).
 - "Lance de X%" sem detalhar é o lance TOTAL: informe lance_embutido_pct = o menor entre X e 25, e lance_proprio_pct = X menos o embutido. Só use outros valores se o corretor disser "embutido" e "próprio" explicitamente.
 - Valores em reais vão como número (250 mil = 250000; "200, 300 e 400 mil" = 200000, 300000, 400000).
 - Para vários clientes, uma única chamada criar_propostas com todos os itens.
