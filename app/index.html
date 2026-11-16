@@ -509,7 +509,7 @@ svg{display:block;}
 <div class="over" id="cena">
   <div class="oh"><button onclick="fecharCena()" aria-label="Fechar"><span data-ic="back"></span></button><b>Mob · assistente por voz</b></div>
   <div class="ob" id="cena-log"></div>
-  <div class="ouvindo hide" id="cena-ouv">● Ouvindo… fale agora</div>
+  <div class="ouvindo hide" id="cena-ouv">● Gravando… toque no microfone para terminar</div>
   <div class="cena-in">
     <input type="text" id="cena-txt" placeholder="Fale ou digite um pedido…" autocomplete="off" onkeydown="if(event.key==='Enter')cenaEnviar()">
     <button class="send" onclick="cenaEnviar()" aria-label="Enviar"><span data-ic="send"></span></button>
@@ -655,6 +655,7 @@ const salvarTudo = () => { store.set('leads', leads); store.set('props', props);
 /* ───────── navegação ───────── */
 const TELAS = ['home', 'sim', 'comp', 'crm', 'mais'];
 function irPara(t) {
+  if (ouvindo) cenaParar(false);
   TELAS.forEach(x => { $('v-' + x).classList.toggle('on', x === t); });
   document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.t === t));
   if (t === 'home') renderHome();
@@ -784,6 +785,7 @@ function textoProposta(p, r) {
 /* visualizador */
 let dv = { itens: [], i: 0 };
 function abrirDocs(itens, i = 0) {
+  if (ouvindo) cenaParar(false);
   dv = { itens, i };
   const tabs = $('dv-tabs');
   if (itens.length > 1) { tabs.classList.remove('hide'); tabs.innerHTML = itens.map((x, k) => `<button class="chip" data-k="${k}" onclick="dvIr(${k})">${esc(primeiroNome(x.label))}</button>`).join(''); } else tabs.classList.add('hide');
@@ -1139,21 +1141,79 @@ function abrirCena(prefill) {
   if (prefill) { $('cena-txt').value = prefill; }
   setTimeout(() => $('cena-txt').focus(), 150);
 }
+document.addEventListener('visibilitychange', () => { if (document.hidden && ouvindo) cenaParar('manter'); });
+window.addEventListener('pagehide', () => { if (ouvindo) cenaParar(false); });
 function fecharCena() { cenaParar(); $('cena').classList.remove('on'); }
 function cenaEnviar() { const t = $('cena-txt').value.trim(); if (!t) return; $('cena-txt').value = ''; cenaProcessar(t); }
+const juntar = (a, b) => [a, b].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+let gr = null; // estado da gravação em andamento
+function liberarMic(r) { if (!r) return; r.onresult = r.onerror = r.onend = null; try { r.stop(); } catch (e) { } try { r.abort(); } catch (e) { } }
+// A gravação só termina quando a pessoa toca de novo no microfone. O navegador encerra a escuta sozinho
+// (silêncio, limite de tempo); nesse caso religamos na hora e continuamos juntando o que foi falado.
 function cenaMic() {
   if (!SR) { toast('Sem suporte a voz neste navegador — use o microfone do teclado.'); $('cena-txt').focus(); return; }
-  if (ouvindo) { cenaParar(); return; }
-  rec = new SR(); rec.lang = 'pt-BR'; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
-  let final = '';
-  rec.onstart = () => { ouvindo = true; $('cena-mic').classList.add('rec'); $('cena-ouv').classList.remove('hide'); };
-  rec.onresult = e => { let interim = ''; for (let i = e.resultIndex; i < e.results.length; i++) { const t = e.results[i][0].transcript; if (e.results[i].isFinal) final += t; else interim += t; } $('cena-txt').value = (final + interim).trim(); };
-  rec.onerror = e => { cenaParar(); if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast('Permita o uso do microfone para gravar.'); else if (e.error === 'no-speech') toast('Não ouvi nada. Tente de novo.'); else toast('Falha no microfone: ' + e.error); };
-  rec.onend = () => { const t = (final || $('cena-txt').value).trim(); cenaParar(); if (t) { $('cena-txt').value = ''; cenaProcessar(t); } };
+  if (ouvindo) { cenaParar(true); return; }
+  gr = { antes: '', sessao: '', pediuParar: false, fatal: '', fimTocado: false, inicios: [], timer: null };
+  ouvindo = true;
+  $('cena-mic').classList.add('rec'); $('cena-ouv').classList.remove('hide'); $('cena-txt').value = '';
   tocarSom('ini');   // dentro do toque do usuário, para o navegador liberar o áudio
-  try { rec.start(); } catch (e) { cenaParar(); }
+  gr.timer = setTimeout(() => { if (ouvindo) { toast('Gravação encerrada após 10 minutos.'); cenaParar(true); } }, 600000);
+  try { gravarSessao(); } catch (e) { gr.fatal = 'inicio'; cenaFinalizar(); }
 }
-function cenaParar() { try { rec && rec.stop(); } catch (e) { } if (ouvindo) tocarSom('fim'); ouvindo = false; $('cena-mic').classList.remove('rec'); $('cena-ouv').classList.add('hide'); }
+function gravarSessao() {
+  const agora = Date.now();
+  gr.inicios = gr.inicios.filter(t => agora - t < 4000); gr.inicios.push(agora);
+  if (gr.inicios.length > 6) { gr.fatal = 'loop'; throw new Error('religando rápido demais'); }
+  const r = rec = new SR();
+  r.lang = 'pt-BR'; r.interimResults = true; r.continuous = true; r.maxAlternatives = 1;
+  gr.sessao = '';
+  r.onresult = e => {
+    let fin = '', inter = '';
+    for (let i = 0; i < e.results.length; i++) { const x = e.results[i]; if (x.isFinal) fin += x[0].transcript; else inter += x[0].transcript; }
+    gr.sessao = (fin + ' ' + inter).trim();
+    $('cena-txt').value = juntar(gr.antes, gr.sessao);
+  };
+  r.onerror = e => {   // "no-speech" e "aborted" são normais: o onend religa
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') gr.fatal = 'perm';
+    else if (e.error === 'network' || e.error === 'audio-capture') gr.fatal = e.error;
+  };
+  r.onend = () => {
+    if (r !== rec || !ouvindo) return;
+    gr.antes = juntar(gr.antes, gr.sessao); gr.sessao = '';
+    if (gr.pediuParar || gr.fatal) { cenaFinalizar(); return; }
+    setTimeout(() => {   // o navegador parou sozinho: religa sem som e sem avisar
+      if (!ouvindo || gr.pediuParar) return;
+      try { gravarSessao(); } catch (e) { gr.fatal = gr.fatal || 'religar'; cenaFinalizar(); }
+    }, 120);
+  };
+  r.start();
+}
+function cenaFinalizar() {   // encerra de vez e envia o que foi dito
+  if (!ouvindo || !gr) return;
+  const t = juntar(gr.antes, gr.sessao), fatal = gr.fatal;
+  clearTimeout(gr.timer);
+  if (!gr.fimTocado && !gr.manter) tocarSom('fim');
+  const r = rec; ouvindo = false; rec = null; liberarMic(r);   // solta o microfone de vez
+  $('cena-mic').classList.remove('rec'); $('cena-ouv').classList.add('hide');
+  if (gr.manter) { $('cena-txt').value = t; toast('Gravação pausada porque você saiu do app. O texto ficou na caixa.', 4500); return; }
+  if (fatal === 'perm') toast('Permita o uso do microfone para gravar.');
+  else if (fatal) toast('O navegador interrompeu a gravação. Enviei o que ouvi.');
+  if (t) { $('cena-txt').value = ''; cenaProcessar(t); }
+}
+// true: a pessoa tocou para terminar (envia). false: cancela sem enviar (ex.: fechar a tela).
+// 'manter': parou por causa do app ir para segundo plano; guarda o texto na caixa, sem enviar.
+function cenaParar(enviar) {
+  if (!ouvindo || !gr) return;
+  if (enviar) {
+    gr.pediuParar = true; gr.fimTocado = true; if (enviar === 'manter') gr.manter = true; else tocarSom('fim');
+    const r = rec; try { r && r.stop(); } catch (e) { }
+    setTimeout(() => { if (ouvindo && gr.pediuParar) { gr.antes = juntar(gr.antes, gr.sessao); gr.sessao = ''; cenaFinalizar(); } }, 1500);   // garantia se o navegador não avisar o fim
+  } else {
+    clearTimeout(gr.timer); const r = rec; rec = null; ouvindo = false;
+    liberarMic(r);
+    tocarSom('fim'); $('cena-mic').classList.remove('rec'); $('cena-ouv').classList.add('hide');
+  }
+}
 const conhecidos = () => [...new Set([...leads.map(l => l.nome), ...props.map(p => p.nome)])];
 
 let iaHist = [];
