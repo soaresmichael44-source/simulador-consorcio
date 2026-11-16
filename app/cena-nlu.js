@@ -38,6 +38,17 @@
     return out.join(' ');
   }
 
+  const ORD = { primeiro: 1, segundo: 2, terceiro: 3, quarto: 4, quinto: 5, sexto: 6, setimo: 7, oitavo: 8, nono: 9, decimo: 10 };
+  const PEQ = { zero: 0, um: 1, uma: 1, dois: 2, duas: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7, oito: 8, nove: 9 };
+  const ALT_ORD = Object.keys(ORD).join('|'), ALT_PEQ = Object.keys(PEQ).join('|');
+  // "mês seis", "sexto mês", "contemplando em seis meses" -> "mes 6" (números pequenos ficam como palavra em wordsToDigits)
+  function normalizaMes(t) {
+    return t
+      .replace(new RegExp('\\b(' + ALT_ORD + ')\\s+mes\\b', 'g'), (m, w) => 'mes ' + ORD[w])
+      .replace(new RegExp('\\bmes\\s+(?:de\\s+contemplacao\\s+)?(?:no\\s+)?(' + ALT_PEQ + ')\\b', 'g'), (m, w) => 'mes ' + PEQ[w])
+      .replace(new RegExp('\\b(?:contempla\\w*|simul\\w*)\\s+(?:no|em|na|para|pro|pra|ate)?\\s*(?:o\\s+)?(' + ALT_PEQ + ')\\s+mes(?:es)?\\b', 'g'), (m, w) => 'mes ' + PEQ[w]);
+  }
+
   function numPT(s) {
     s = String(s).replace(/[^\d,.]/g, '');
     if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
@@ -54,7 +65,7 @@
 
   /* Extrai parâmetros numéricos de um pedido. Devolve também a lista de valores em reais. */
   function extrairNumeros(raw) {
-    let t = wordsToDigits(norm(raw).replace(/\bpor cento\b/g, '%').replace(/([,;:?!])(\s|$)/g, ' $1 ').replace(/\s+/g, ' '));
+    let t = normalizaMes(wordsToDigits(norm(raw).replace(/\bpor cento\b/g, '%').replace(/([,;:?!])(\s|$)/g, ' $1 ').replace(/\s+/g, ' ')));
     const r = { valores: [] };
     let m;
 
@@ -114,6 +125,10 @@
   const STOP_FALLBACK = new Set(['carta','de','com','credito','valor','em','no','na','mes','contempla','contemplacao','lance','taxa','prazo',
     'entrada','financiamento','renda','fixa','price','sac','consorcio','auto','imovel','moto','pesados','um','uma','para','pro','pra','do','da']);
 
+  const INICIO = new Set(['quero', 'preciso', 'faz', 'faca', 'fazer', 'simula', 'simular', 'gera', 'gerar', 'monta', 'montar', 'cria', 'criar', 'me', 'pode', 'por', 'favor',
+      'nova', 'novo', 'uma', 'um', 'proposta', 'propostas', 'simulacao', 'carta', 'credito', 'cota', 'oi', 'ola', 'mob', 'bom', 'dia', 'boa', 'tarde', 'noite', 'e', 'a', 'o', 'com',
+      'no', 'na', 'em', 'ate', 'que', 'la', 'aqui', 'compara', 'comparar', 'abre', 'abrir', 'mostra', 'mostrar', 'lembra', 'anota', 'anotar', 'cliente', 'clientes',
+    'gere', 'crie', 'simule', 'calcule', 'prepare', 'elabore', 'envie', 'manda', 'mande', 'faca', 'preciso', 'queria', 'gostaria', 'precisamos', 'vamos', 'fecha', 'fechei', 'fechou', 'vendi', 'liga', 'ligar', 'anota']);
   const maiuscula = w => /^\p{Lu}/u.test(w);
 
   /* Nomes de clientes citados. 1) palavras capitalizadas (após o 1º termo); 2) fallback para texto em minúsculas. */
@@ -130,7 +145,7 @@
     const fecha = () => { if (atual.length) cands.push(atual.join(' ')); atual = []; };
     toks.forEach((w, i) => {
       const limpo = w.replace(/[.]/g, '');
-      if (i > 0 && maiuscula(limpo) && !STOP_NOME.has(norm(limpo)) && /^\p{L}+$/u.test(limpo)) atual.push(limpo);
+      if ((i > 0 || !INICIO.has(norm(limpo))) && maiuscula(limpo) && !STOP_NOME.has(norm(limpo)) && !(norm(limpo) in U) && /^\p{L}+$/u.test(limpo)) atual.push(limpo);
       else fecha();
     });
     fecha();
@@ -149,13 +164,13 @@
     // fallback: minúsculas — nomes depois de pro/pra/para/do/da/cliente, em lista "A, B e C"
     const lower = toks.map(w => norm(w));
     for (let i = 0; i < lower.length; i++) {
-      if (!['pro', 'pra', 'para', 'do', 'da', 'cliente'].includes(lower[i])) continue;
+      if (!['pro', 'pra', 'para', 'do', 'da', 'cliente', 'de'].includes(lower[i])) continue;
       let j = i + 1;
       if (['o', 'a'].includes(lower[j])) j++;
       let primeiro = true;
       while (j < lower.length) {
         const w = lower[j];
-        if (/^\d/.test(w) || STOP_FALLBACK.has(w) || /^[,;:?!]$/.test(w) && primeiro) break;
+        if (/^\d/.test(w) || w in U || w === 'mil' || /^milh/.test(w) || STOP_FALLBACK.has(w) || /^[,;:?!]$/.test(w) && primeiro) break;
         if (w === ',' || w === 'e') { j++; primeiro = false; continue; }
         if (/^[;:?!]$/.test(w)) break;
         if (!/^\p{L}+$/u.test(w)) break;
@@ -165,6 +180,17 @@
       }
       if (nomes.length) break;
     }
+    if (nomes.length) return nomes;
+
+    // nome logo no começo da frase ("Rafael Souza, carta de 250 mil" / "rafael 250 mil")
+
+    const ini = [];
+    for (let i = 0; i < lower.length && ini.length < 3; i++) {
+      const w = lower[i];
+      if (/^[,;:?!]$/.test(w) || /^\d/.test(w) || w in U || w === 'mil' || STOP_FALLBACK.has(w) || (ini.length === 0 && INICIO.has(w)) || !/^\p{L}+$/u.test(w)) break;
+      ini.push(toks[i].replace(/\./g, ''));
+    }
+    if (ini.length && ini[0].length >= 3) nomes.push(ini.map(w => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' '));
     return nomes;
   }
 
@@ -251,13 +277,19 @@
     return r;
   }
 
-  // Resposta curta a uma pergunta ("6", "mês 6", "seis", "doze"): devolve o inteiro ou null.
+  // Resposta curta a uma pergunta ("6", "mês 6", "seis", "sexto", "vinte e quatro"): devolve o inteiro ou null.
   function numeroSimples(raw) {
     const n = norm(raw);
     const m = /\d+/.exec(n);
     if (m) return parseInt(m[0]);
-    for (const w of n.split(/[\s,.;:!?]+/)) if (w in U) return U[w];
-    return null;
+    let total = 0, achou = false;
+    for (const w of n.split(/[\s,.;:!?]+/).filter(Boolean)) {
+      if (w in ORD) return ORD[w];
+      if (w in U) { total += U[w]; achou = true; }
+      else if (w === 'e' && achou) continue;
+      else if (achou) break;
+    }
+    return achou ? total : null;
   }
 
   const api = { numeroSimples, norm, wordsToDigits, extrairNumeros, extrairNomes, extrairRetorno, categoria, interpretar };
