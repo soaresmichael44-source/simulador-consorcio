@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#0B2A8A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Mobie Cenário — App do corretor de consórcio</title>
+<title>Mobie — App do corretor de consórcio</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <style>
@@ -301,7 +301,7 @@ svg{display:block;}
 
 <header class="top">
   <div class="tile" id="top-tile"></div>
-  <div><h1 id="top-nome">Mobie Cenário</h1><small>App do corretor</small></div>
+  <div><h1 id="top-nome">Mobie</h1><small>App do corretor</small></div>
   <div class="sp"></div>
   <button class="ib" onclick="irPara('mais');setTimeout(()=>document.getElementById('cfg-card').scrollIntoView({behavior:'smooth'}),80)" aria-label="Configurações">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>
@@ -545,7 +545,7 @@ svg{display:block;}
 <div class="login" id="login">
   <form class="box" id="lg-form" onsubmit="return nuvem.enviar(event)">
     <div class="tile" id="lg-tile"></div>
-    <h2 id="lg-tit">Entrar no Mobie Cenário</h2>
+    <h2 id="lg-tit">Entrar no Mobie</h2>
     <p class="s" id="lg-sub">Seus clientes e propostas ficam salvos na sua conta, em qualquer aparelho.</p>
     <div id="lg-msg"></div>
     <div class="campo" id="lg-c-email"><label>E-mail</label><input type="email" id="lg-email" autocomplete="username" inputmode="email" required></div>
@@ -1054,7 +1054,7 @@ function cfgPreencher() {
 function cfgSalvar() {
   Object.assign(brand, { nome: $('b-nome').value.trim() || 'Mobie', tel: $('b-tel').value.trim(), email: $('b-email').value.trim(), cor: $('b-cor').value, empresa: $('b-emp').value.trim(), cnpj: $('b-cnpj').value.trim() });
   Object.assign(cfg, { taxaAm: parseFloat($('b-taxaam').value) || CFG0.taxaAm, prazoFin: parseInt($('b-prazofin').value) || CFG0.prazoFin, cdi: parseFloat($('b-cdi').value) || CFG0.cdi, pctCdi: parseFloat($('b-pcdi').value) || CFG0.pctCdi, meta: parseInt($('b-meta').value) || 0 });
-  store.set('brand', brand); store.set('cfg', cfg); aplicarMarca(); $('top-nome').textContent = brand.nome === 'Mobie' ? 'Mobie Cenário' : brand.nome; $('c-taxaam').value = ''; toast('Salvo.');
+  store.set('brand', brand); store.set('cfg', cfg); aplicarMarca(); $('top-nome').textContent = brand.nome === 'Mobie' ? 'Mobie' : brand.nome; $('c-taxaam').value = ''; toast('Salvo.');
 }
 $('b-logo').addEventListener('change', e => {
   const f = e.target.files[0]; if (!f) return;
@@ -1317,7 +1317,7 @@ nuvem = {
   refazerTela() {
     aplicarMarca(); cfgPreencher(); simRestaurar(); renderHome(); renderMulti(); renderApSel();
     if ($('v-crm').classList.contains('on')) renderCRM();
-    $('top-nome').textContent = brand.nome === 'Mobie' ? 'Mobie Cenário' : brand.nome;
+    $('top-nome').textContent = brand.nome === 'Mobie' ? 'Mobie' : brand.nome;
   },
   async puxar() {
     const [L, P, F] = await Promise.all([
@@ -1384,7 +1384,7 @@ nuvem = {
   aviso(txt, ok) { $('lg-msg').innerHTML = txt ? `<div class="${ok ? 'ok' : 'erro'}">${esc(txt)}</div>` : ''; },
   ajustarForm() {
     const m = this.modo, nova = m === 'nova', cria = m === 'criar';
-    $('lg-tit').textContent = nova ? 'Defina a nova senha' : cria ? 'Criar sua conta' : 'Entrar no Mobie Cenário';
+    $('lg-tit').textContent = nova ? 'Defina a nova senha' : cria ? 'Criar sua conta' : 'Entrar no Mobie';
     $('lg-sub').textContent = nova ? 'Escolha uma senha com pelo menos 6 caracteres.' : 'Seus clientes e propostas ficam salvos na sua conta, em qualquer aparelho.';
     $('lg-c-email').classList.toggle('hide', nova); $('lg-email').required = !nova;
     $('lg-l-senha').textContent = nova ? 'Nova senha' : 'Senha';
@@ -1451,7 +1451,7 @@ nuvem = {
 /* ═══════════════════════ INICIALIZAÇÃO ═══════════════════════ */
 $('top-tile').innerHTML = tileSVG(); $('splash-tile').innerHTML = tileSVG(); $('lg-tile').innerHTML = tileSVG();
 aplicarMarca(); cfgPreencher(); simRestaurar(); renderHome();
-$('top-nome').textContent = brand.nome === 'Mobie' ? 'Mobie Cenário' : brand.nome;
+$('top-nome').textContent = brand.nome === 'Mobie' ? 'Mobie' : brand.nome;
 let jaViu = false; try { jaViu = sessionStorage.getItem('mc_splash') === '1'; } catch (e) { }
 if (jaViu) $('splash').remove(); else setTimeout(fecharSplash, 3200);
 history.replaceState({}, '', location.href);
