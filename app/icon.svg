@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs>
+<linearGradient id="mt-bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b8bff"/><stop offset=".55" stop-color="#1a54f0"/><stop offset="1" stop-color="#0a2fa6"/></linearGradient>
+<linearGradient id="mt-m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".55" stop-color="#dbe6f7"/><stop offset="1" stop-color="#a9bad6"/></linearGradient>
+<pattern id="mt-h" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45.6)"><rect width="9" height="9" fill="#0a2a8f"/><rect width="4.2" height="9" fill="#8fb4ff"/></pattern></defs>
+<rect width="120" height="120" fill="url(#mt-bg)"/>
+<g transform="translate(20 27.6) scale(.6) translate(0 -16)"><polygon points="109.9,65.4 132.7,43.2 132.7,124 109.9,124" fill="url(#mt-h)"/><polygon points="0,16 17.3,16 66,64.8 91.3,38.8 67.9,37 90.7,16 132.7,16 132.7,55.5 109.9,77.1 109.9,53.6 66,95 22.8,53.6 22.8,124 0,124" fill="url(#mt-m)"/></g></svg>
