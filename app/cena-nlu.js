@@ -54,7 +54,7 @@
 
   /* Extrai parâmetros numéricos de um pedido. Devolve também a lista de valores em reais. */
   function extrairNumeros(raw) {
-    let t = wordsToDigits(norm(raw).replace(/([,;:?!])(\s|$)/g, ' $1 ').replace(/\s+/g, ' '));
+    let t = wordsToDigits(norm(raw).replace(/\bpor cento\b/g, '%').replace(/([,;:?!])(\s|$)/g, ' $1 ').replace(/\s+/g, ' '));
     const r = { valores: [] };
     let m;
 

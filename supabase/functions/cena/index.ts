@@ -191,7 +191,8 @@ Deno.serve(async (req: Request) => {
   let corpo: any;
   try { corpo = await req.json(); } catch { return json({ erro: "json_invalido" }, 400); }
   const msgs = Array.isArray(corpo?.mensagens) ? corpo.mensagens.slice(-12) : [];
-  const valido = msgs.length > 0 &&
+  const diag = corpo?.diag === true; // pedido de diagnóstico: só diz quais provedores a função enxerga
+  const valido = diag || msgs.length > 0 &&
     msgs.every((m: any) => (m?.role === "user" || m?.role === "assistant") && typeof m.content === "string" && m.content.length > 0 && m.content.length <= 1500) &&
     msgs[msgs.length - 1].role === "user";
   if (!valido) return json({ erro: "mensagens_invalidas" }, 400);
@@ -209,6 +210,7 @@ Deno.serve(async (req: Request) => {
     anthropic: Deno.env.get("ANTHROPIC_API_KEY"), groq: Deno.env.get("GROQ_API_KEY"), gemini: Deno.env.get("GEMINI_API_KEY"),
   };
   const ordem = (Deno.env.get("IA_PROVIDERS") ?? "anthropic,groq").split(",").map((x) => x.trim()).filter((p) => PROVEDORES[p] && chaves[p]);
+  if (diag) return json({ diag: { anthropic: !!chaves.anthropic, groq: !!chaves.groq, gemini: !!chaves.gemini, ia_providers: Deno.env.get("IA_PROVIDERS") ?? null, ordem, limite_diario: LIMITE } });
   if (!ordem.length) return json({ erro: "sem_chave" }, 503);
 
   // --- limite diário por corretor ---
