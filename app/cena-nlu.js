@@ -122,13 +122,16 @@
     'crédito','consorcio','consórcio','financiamento','price','sac','renda','fixa','auto','imovel','imóvel','moto','pesados',
     'segunda','terça','terca','quarta','quinta','sexta','sábado','sabado','domingo','amanhã','amanha','hoje','ligar','retorno',
     'cdi','lance','taxa','prazo','entrada','novo','nova','muda','mudar','fechei','fechou','vendi','abre','abrir','mostra','mostrar']);
-  const STOP_FALLBACK = new Set(['carta','de','com','credito','valor','em','no','na','mes','contempla','contemplacao','lance','taxa','prazo',
+  const STOP_FALLBACK = new Set(['mim', 'ti', 'si', 'ele', 'ela', 'voce', 'vc', 'nos', 'alguem', 'outro', 'outra', 'carta','de','com','credito','valor','em','no','na','mes','contempla','contemplacao','lance','taxa','prazo',
     'entrada','financiamento','renda','fixa','price','sac','consorcio','auto','imovel','moto','pesados','um','uma','para','pro','pra','do','da']);
 
   const INICIO = new Set(['quero', 'preciso', 'faz', 'faca', 'fazer', 'simula', 'simular', 'gera', 'gerar', 'monta', 'montar', 'cria', 'criar', 'me', 'pode', 'por', 'favor',
       'nova', 'novo', 'uma', 'um', 'proposta', 'propostas', 'simulacao', 'carta', 'credito', 'cota', 'oi', 'ola', 'mob', 'bom', 'dia', 'boa', 'tarde', 'noite', 'e', 'a', 'o', 'com',
       'no', 'na', 'em', 'ate', 'que', 'la', 'aqui', 'compara', 'comparar', 'abre', 'abrir', 'mostra', 'mostrar', 'lembra', 'anota', 'anotar', 'cliente', 'clientes',
+    'eu', 'tu', 'ele', 'ela', 'voce', 'nos', 'gente', 'agora', 'hoje', 'amanha', 'entao', 'olha', 'ei', 'bora', 'tenho', 'poderia', 'consegue', 'podia', 'minha', 'meu', 'nossa', 'novamente',
     'gere', 'crie', 'simule', 'calcule', 'prepare', 'elabore', 'envie', 'manda', 'mande', 'faca', 'preciso', 'queria', 'gostaria', 'precisamos', 'vamos', 'fecha', 'fechei', 'fechou', 'vendi', 'liga', 'ligar', 'anota']);
+  // depois de um nome no começo da frase só pode vir: vírgula, número, "carta/crédito/proposta" ou o fim
+  const PROX_OK = w => w === undefined || /^[,;:?!]$/.test(w) || /^\d/.test(w) || w in U || w === 'mil' || /^milh/.test(w) || ['carta', 'credito', 'proposta', 'simulacao', 'cota'].includes(w);
   const maiuscula = w => /^\p{Lu}/u.test(w);
 
   /* Nomes de clientes citados. 1) palavras capitalizadas (após o 1º termo); 2) fallback para texto em minúsculas. */
@@ -145,7 +148,9 @@
     const fecha = () => { if (atual.length) cands.push(atual.join(' ')); atual = []; };
     toks.forEach((w, i) => {
       const limpo = w.replace(/[.]/g, '');
-      if ((i > 0 || !INICIO.has(norm(limpo))) && maiuscula(limpo) && !STOP_NOME.has(norm(limpo)) && !(norm(limpo) in U) && /^\p{L}+$/u.test(limpo)) atual.push(limpo);
+      const proxima = toks[i + 1];
+      const inicioOk = i > 0 || (!INICIO.has(norm(limpo)) && (PROX_OK(proxima && norm(proxima)) || (proxima && maiuscula(proxima.replace(/[.]/g, '')))));
+      if (inicioOk && maiuscula(limpo) && !STOP_NOME.has(norm(limpo)) && !(norm(limpo) in U) && /^\p{L}+$/u.test(limpo)) atual.push(limpo);
       else fecha();
     });
     fecha();
@@ -190,7 +195,7 @@
       if (/^[,;:?!]$/.test(w) || /^\d/.test(w) || w in U || w === 'mil' || STOP_FALLBACK.has(w) || (ini.length === 0 && INICIO.has(w)) || !/^\p{L}+$/u.test(w)) break;
       ini.push(toks[i].replace(/\./g, ''));
     }
-    if (ini.length && ini[0].length >= 3) nomes.push(ini.map(w => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' '));
+    if (ini.length && ini[0].length >= 3 && PROX_OK(lower[ini.length])) nomes.push(ini.map(w => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' '));
     return nomes;
   }
 
