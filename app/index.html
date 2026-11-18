@@ -1471,9 +1471,9 @@ function cenaExecutarIA(resp, textoOriginal) {
     if (a.acao === 'perguntar' && typeof a.pergunta === 'string') { msg(a.pergunta.slice(0, 400), 'c'); perguntou = a.pergunta; }
     else if (a.acao === 'criar_propostas') {
       const itens = (Array.isArray(a.itens) ? a.itens : []).slice(0, 10)
-        .filter(i => i && typeof i.nome === 'string' && i.nome.trim() && numOk(i.credito, 1000, 1e9))
+        .filter(i => i && typeof i.nome === 'string' && i.nome.trim() && !/^(eu|voce|você|nos|nós|mim|ele|ela|cliente|alguem|alguém)$/i.test(i.nome.trim()) && numOk(i.credito, 1000, 1e9))
         .map(i => ({ nome: i.nome.trim().slice(0, 80), credito: i.credito }));
-      if (!itens.length) { msg('Não consegui identificar cliente e valor. Pode repetir?', 'c'); continue; }
+      if (!itens.length) { msg('Para quem é a proposta? Me diga o nome do cliente.', 'c'); continue; }
       const cat = CATEGORIAS[a.categoria] ? a.categoria : (CATEGORIAS[simCat] ? simCat : 'auto');
       const base = padraoCat(cat);
       base.prazo = numOk(a.prazo, 1, 400) ? Math.round(a.prazo) : base.prazo;
