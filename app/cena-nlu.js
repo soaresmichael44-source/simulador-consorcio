@@ -72,24 +72,46 @@
     [m, t] = pegar(t, /\(?\b\d{2}\)?\s*9?\d{4}[- ]?\d{4}\b/);                      // telefone
     if (m) r.telefone = m[0].replace(/\D/g, '');
 
+    // ---- formato da parcela (plano): meia parcela, reduzida, Light, Renovação 50/70, integral/linear, decrescente/degrau ----
+    const plano = {};
+    [m, t] = pegar(t, /\b(?:decrescentes?|degrau|escalonad[ao]s?)\b/); if (m) plano.forma = 'degrau';
+    [m, t] = pegar(t, /\b(?:super\s*light|meia\s*parcela|metade\s*da\s*parcela|parcelas?\s*pela\s*metade|renovacao\s*50|plano\s*50)\b/); if (m) plano.pct = 50;
+    [m, t] = pegar(t, /\b(?:renovacao\s*70|plano\s*70)\b/); if (m) plano.pct = 70;
+    [m, t] = pegar(t, /\b(?:plano\s*)?light\b/); if (m && plano.pct == null) plano.pct = 75;
+    [m, t] = pegar(t, /\b(\d{1,3})\s*%\s*(?:da|de|do)\s*(?:a\s*)?(?:parcela|fundo\s*comum)\b/); if (m && +m[1] > 0 && +m[1] <= 100) plano.pct = +m[1];
+    [m, t] = pegar(t, /\b(?:parcelas?\s*reduzid[ao]s?|reduc\w*)\s*((?:em|de)\s*)?(\d{1,3})\s*%/);
+    if (m) { const n = +m[2]; plano.pct = m[1] ? 100 - n : (n >= 50 ? n : 100 - n); }
+    [m, t] = pegar(t, /\bcrescentes?\b/); if (m) { plano.crescente = true; if (plano.pct == null) plano.pct = 70; }
+    [m, t] = pegar(t, /\breduzid[ao]s?\b/); if (m && plano.pct == null) plano.pct = 70;
+    [m, t] = pegar(t, /\b(?:parcelas?\s*)?(?:integrais?|cheias?|inteiras?|linea(?:r|res))\b|\bparcelas?\s*(?:normal|fixas?)\b|\bplano\s*(?:normal|integral)\b/); if (m && plano.pct == null) plano.pct = 100;
+    if (plano.pct != null || plano.forma) r.plano = plano;
+
+    // ---- lance: sem lance, em parcelas, embutido, próprio/livre, fixo, total (em % ou em reais) ----
+    [m, t] = pegar(t, /\b(?:sem\s*(?:dar\s*)?lance|nao\s*(?:vou\s*|quero\s*)?(?:dar|ofertar)\s*lance|por\s*sorteio)\b/); if (m) r.semLance = true;
+    [m, t] = pegar(t, /\blance\s*(?:de\s*|com\s*)?(\d{1,3})\s*parcelas?\b|\b(\d{1,3})\s*parcelas?\s*(?:de\s*)?lance\b/); if (m) r.lanceParcelas = +(m[1] || m[2]);
+    [m, t] = pegar(t, /\bembutid\w*\s*(?:de\s*|em\s*)?(\d+(?:[.,]\d+)?)\s*%|(\d+(?:[.,]\d+)?)\s*%\s*(?:de\s*)?embutid\w*/); if (m) r.pctEmb = numPT(m[1] || m[2]);
+    [m, t] = pegar(t, /\bembutid\w*\s*(?:de\s*)?(?:r\$\s*)?(\d[\d.,]*)\s*(mil|k)\b/); if (m && r.pctEmb == null) r.embValor = numPT(m[1]) * 1000;
+    [m, t] = pegar(t, /\b(?:recursos?\s*)?(?:proprios?|livre)\s*(?:de\s*|em\s*)?(\d+(?:[.,]\d+)?)\s*%|(\d+(?:[.,]\d+)?)\s*%\s*(?:de\s*)?(?:recursos?\s*)?(?:proprios?|livre)\b/); if (m) r.pctProp = numPT(m[1] || m[2]);
+    [m, t] = pegar(t, /\b(?:recursos?\s*)?(?:proprios?|livre)\s*(?:de\s*)?(?:r\$\s*)?(\d[\d.,]*)\s*(mil|k)\b/); if (m && r.pctProp == null) r.propValor = numPT(m[1]) * 1000;
+    [m, t] = pegar(t, /\blance\s*(?:fixo\s*|total\s*)?(?:de\s*|com\s*|em\s*)?(\d+(?:[.,]\d+)?)\s*%/); if (m) r.lanceTotal = numPT(m[1]);
+    [m, t] = pegar(t, /\blance\s*(?:fixo\s*|total\s*)?(?:de\s*|com\s*|em\s*)?(?:r\$\s*)?(\d[\d.,]*)\s*(mil|k|milhao)?\b/);
+    if (m && r.lanceTotal == null) { const v = numPT(m[1]) * (m[2] ? (m[2] === 'milhao' ? 1e6 : 1000) : 1); r.lanceValor = v < 1000 ? v * 1000 : v; }
+
     [m, t] = pegar(t, /(?:contempla\w*\s*(?:no|em|na|para|pro|pra)?\s*)?\bmes\s*(?:de\s*contemplacao\s*)?(?:no\s*)?(\d{1,3})\b/);
     if (!m) [m, t] = pegar(t, /\b(\d{1,3})\s*(?:o|º|°)?\s*mes\b/);
     if (!m) [m, t] = pegar(t, /contempla\w*\s*(?:no|em|na|para|pro|pra)?\s*(?:o\s*)?(\d{1,3})\b/);
     if (m) r.mes = parseInt(m[1]);
 
-    [m, t] = pegar(t, /\bprazo\s*(?:de\s*)?(\d{2,3})\b(?:\s*meses)?/);
-    if (!m) [m, t] = pegar(t, /\b(\d{2,3})\s*meses\b/);
-    if (m) r.prazo = parseInt(m[1]);
+    // ---- prazo: "prazo de 80", "80 meses", "80 parcelas", "em 84 vezes", "80x", "7 anos" ----
+    let prazo = null;
+    [m, t] = pegar(t, /\bprazo\s*(?:de\s*|em\s*|do\s*grupo\s*de\s*|total\s*de\s*)?(\d{1,3})\s*(anos?|meses|parcelas|vezes|x)?\b/);
+    if (m) prazo = /^anos?$/.test(m[2] || '') ? +m[1] * 12 : +m[1];
+    if (prazo == null) { [m, t] = pegar(t, /\b(\d{1,2})\s*anos?\b/); if (m) prazo = +m[1] * 12; }
+    if (prazo == null) { [m, t] = pegar(t, /\b(\d{2,3})\s*(?:meses|parcelas|vezes)\b|\b(\d{2,3})\s*x\b/); if (m) prazo = +(m[1] || m[2]); }
+    if (prazo != null && prazo >= 6 && prazo <= 420) r.prazo = prazo;
 
-    [m, t] = pegar(t, /\btaxa(?:\s*(?:de\s*)?adm\w*)?\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(?:%|por cento)?/);
-    if (m) r.taxa = numPT(m[1]);
-
-    [m, t] = pegar(t, /\bembutid\w*\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(?:%|por cento)?/);
-    if (m) r.pctEmb = numPT(m[1]);
-    [m, t] = pegar(t, /\b(?:recursos\s*)?proprio\w*\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(?:%|por cento)?/);
-    if (m) r.pctProp = numPT(m[1]);
-    [m, t] = pegar(t, /\blance\s*(?:total\s*)?(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(?:%|por cento)/);
-    if (m) r.lanceTotal = numPT(m[1]);
+    [m, t] = pegar(t, /\btaxa\s*(?:de\s*)?(?:adm\w*|administrativ\w*|total)?\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(?:%|por cento)?|(\d+(?:[.,]\d+)?)\s*%\s*de\s*taxa/);
+    if (m) r.taxa = numPT(m[1] || m[2]);
 
     [m, t] = pegar(t, /\bentrada\s*(?:de\s*)?(?:r\$\s*)?(\d[\d.,]*)\s*(mil|k)?/);
     if (m) r.entrada = numPT(m[1]) * (m[2] ? 1000 : 1) || undefined;
@@ -260,7 +282,7 @@
     if (/\brenda fixa\b|\bcdb\b|\binvestir\b|\binvestidor\b|\bcdi\b/.test(n) && /\bcompar|\bmonta|\bfaz|\bgera|\brenda fixa\b/.test(n)) {
       r.intent = 'rendafixa'; r.nomes = extrairNomes(raw, conhecidos); return r;
     }
-    if (/\b(propost\w*|simul\w*|carta de|credito de|cota de)\b/.test(n) && !/\blembra\b/.test(n)) {
+    if (/\b(propost\w*|simul\w*|carta de|credito de|cota de|consorcio|cotas?|carta)\b/.test(n) && !/\blembra\b/.test(n) && !/\b(gostou|fechou|fechei|vendi|desistiu|conversar)\b/.test(n)) {
       r.intent = 'proposta';
       r.cat = categoria(n);
       r.nomes = extrairNomes(raw, conhecidos);
