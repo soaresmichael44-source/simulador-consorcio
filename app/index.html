@@ -157,6 +157,12 @@ svg{display:block;}
 .over .of button.v{background:#1F9D63;color:#fff;}
 .over .of button svg{width:22px;height:22px;}
 .item .av svg{width:20px;height:20px;}
+.item-linha{display:flex;align-items:center;border-bottom:1px solid var(--borda);}
+.item-linha:last-child{border-bottom:none;}
+.item-linha .item{border-bottom:none;flex:1;min-width:0;width:auto;}
+.ex{width:46px;height:46px;flex-shrink:0;color:var(--sub);display:grid;place-items:center;}
+.ex svg{width:19px;height:19px;}
+.ex:active{color:var(--verm);}
 
 /* CENA */
 #cena .ob{display:flex;flex-direction:column;gap:10px;}
@@ -284,11 +290,11 @@ svg{display:block;}
 .conta-st i.on{background:#19A463;}
 #printArea{display:none;}
 @media print{
-  @page{size:A4;margin:8mm 10mm;}
+  @page{size:A4;margin:0;}   /* margem 0 tira o endereço do site do cabeçalho e do rodapé da impressão */
   body{background:#fff;}
   body>*:not(#printArea):not(#gdefs){display:none!important;}
   #printArea{display:block;}
-  .pg{break-after:page;}.pg:last-child{break-after:auto;}
+  .pg{break-after:page;padding:8mm 10mm;}.pg:last-child{break-after:auto;}
   .doc{box-shadow:none;border-radius:0;}
   .tbl-demo,.lance-row,.tbl-info tr{break-inside:avoid;}
   .bloco-titulo{break-after:avoid;}
@@ -355,7 +361,9 @@ svg{display:block;}
         <div class="campo"><label>Nome do cliente</label><input type="text" id="s-nome" placeholder="Ex.: João da Silva" autocomplete="off"></div>
         <div class="g2">
           <div class="campo"><label>WhatsApp (opcional)</label><input type="tel" id="s-tel" placeholder="(11) 99999-9999"></div>
-          <div class="campo"><label>Plano</label><select id="s-plano"><option>Plano Integral</option><option>Renovação 50</option><option>Renovação 70</option><option>Padrão</option></select></div>
+          <div class="campo"><label>Forma da parcela</label><select id="s-forma"><option value="linear">Linear (parcela fixa)</option><option value="degrau">Decrescente (degrau)</option></select></div>
+          <div class="campo full"><label>Parcela até a contemplação</label><select id="s-pct" onchange="simPlanoMudou()"><option value="100">Integral (100%)</option><option value="75">Light — reduzida em 25% (paga 75%)</option><option value="70">Renovação 70 (paga 70%)</option><option value="50">Meia parcela / Renovação 50 (paga 50%)</option><option value="outro">Outro percentual…</option></select><span class="hint">Nos planos reduzidos, a diferença é rateada nas parcelas depois da contemplação.</span></div>
+          <div class="campo full hide" id="s-c-outro"><label>% da parcela paga até contemplar</label><input type="number" inputmode="decimal" id="s-pct-outro" min="10" max="100" step="1" placeholder="Ex.: 60"></div>
         </div>
         <div class="sec">Plano contratado</div>
         <div class="g2">
@@ -588,7 +596,7 @@ svg{display:block;}
 <script src="cena-nlu.js"></script>
 <script>
 'use strict';
-const { fmt, fmtPct, lerValor, CATEGORIAS, calcConsorcio, calcFinanciamento, calcRendaFixa } = Calc;
+const { fmt, fmtPct, lerValor, CATEGORIAS, PLANOS, rotuloPlano, notaPlano, calcConsorcio, calcFinanciamento, calcRendaFixa } = Calc;
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -627,6 +635,7 @@ const IC = {
   img: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',
   share: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>',
   wa: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 01-12.4 7.4L3 20.5l1.7-5.4A8.4 8.4 0 1121 11.5z"/></svg>',
+  lixo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6"/></svg>',
   mais: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>',
   stop: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>',
   sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
@@ -717,9 +726,11 @@ function simHint() {
   const cr = lerValor($('s-credito').value), e = +$('s-emb').value || 0, p = +$('s-prop').value || 0;
   $('s-hint').textContent = cr ? `Lance total: ${fmtPct(e + p, 4)} — ${fmt(cr * (e + p) / 100)}` : 'Informe o crédito para ver o lance total.';
 }
+function simPct() { const v = $('s-pct').value; return v === 'outro' ? Math.min(100, Math.max(10, parseFloat($('s-pct-outro').value) || 100)) : +v; }
+function simPlanoMudou() { $('s-c-outro').classList.toggle('hide', $('s-pct').value !== 'outro'); }
 function simLer() {
   return {
-    cat: simCat, nome: $('s-nome').value.trim(), tel: $('s-tel').value.trim(), plano: $('s-plano').value,
+    cat: simCat, nome: $('s-nome').value.trim(), tel: $('s-tel').value.trim(), pctParcela: simPct(), forma: $('s-forma').value,
     credito: lerValor($('s-credito').value), prazo: parseInt($('s-prazo').value) || 0, taxa: parseFloat($('s-taxa').value),
     pagas: parseInt($('s-pagas').value) || 0, entrada: lerValor($('s-entrada').value),
     pctEmb: parseFloat($('s-emb').value) || 0, pctProp: parseFloat($('s-prop').value) || 0
@@ -734,7 +745,9 @@ function validar(d) {
 function novaProposta(d) {
   const n = new Date();
   const base = { id: uid(), criado: n.toISOString(), numero: n.getFullYear() + String(n.getMonth() + 1).padStart(2, '0') + String(n.getDate()).padStart(2, '0') + '-' + String(n.getHours()).padStart(2, '0') + String(n.getMinutes()).padStart(2, '0') + '-' + Math.floor(Math.random() * 90 + 10) };
-  return Object.assign(base, { plano: 'Plano Integral', pagas: 1, pctEmb: 25, pctProp: 15, entrada: 0, tel: '', cat: 'auto', nome: 'Cliente não identificado' }, d);
+  const o = Object.assign(base, { pctParcela: 100, forma: 'linear', pagas: 1, pctEmb: 25, pctProp: 15, entrada: 0, tel: '', cat: 'auto', nome: 'Cliente não identificado' }, d);
+  o.plano = rotuloPlano(o.pctParcela, o.forma);
+  return o;
 }
 function guardarProposta(p) { props.unshift(p); props = props.slice(0, 100); salvarTudo(); }
 function gerarProposta() {
@@ -749,7 +762,9 @@ function simRestaurar() {
   simCat = d && CATEGORIAS[d.cat] ? d.cat : 'auto';
   const c = CATEGORIAS[simCat];
   $('s-nome').value = d ? d.nome : ''; $('s-tel').value = d ? d.tel : '';
-  $('s-plano').value = d ? d.plano : 'Plano Integral';
+  const pc = d && d.pctParcela ? +d.pctParcela : 100;
+  if ([100, 75, 70, 50].includes(pc)) $('s-pct').value = String(pc); else { $('s-pct').value = 'outro'; $('s-pct-outro').value = pc; }
+  $('s-forma').value = d && d.forma === 'degrau' ? 'degrau' : 'linear'; simPlanoMudou();
   $('s-credito').value = d && d.credito ? String(d.credito).replace('.', ',') : '';
   $('s-prazo').value = d && d.prazo ? d.prazo : c.prazo; $('s-taxa').value = d && !isNaN(d.taxa) ? d.taxa : c.taxa;
   $('s-pagas').value = d ? d.pagas : 1; $('s-entrada').value = d && d.entrada ? String(d.entrada).replace('.', ',') : '';
@@ -783,6 +798,20 @@ function docFrame(tipo, icone, inner) {
 }
 const tr = (l, v, cls) => `<tr${cls ? ` class="${cls}"` : ''}><td>${l}</td><td>${v}</td></tr>`;
 
+// Linhas da tabela do plano: mostram o que muda em cada formato de parcela.
+function linhasParcela(r) {
+  if (!r.reduzida && r.forma !== 'degrau') return tr('Valor da parcela', fmt(r.parcela));
+  let h = '';
+  if (r.forma === 'degrau') h += tr('Parcela na 1ª metade do prazo', fmt(r.parcelaCheia)) + tr('Parcela na 2ª metade do prazo', fmt(r.parcelaSegundaMetade));
+  if (r.reduzida) h += tr(`Parcela até a contemplação (${Math.round(r.pctParcela)}% do fundo comum)`, fmt(r.parcelaAntes)) + tr('Parcela depois da contemplação (sem lance)', fmt(r.parcelaDepois));
+  return h;
+}
+// Descrição curta da parcela para mensagens e textos.
+function descParcela(r) {
+  if (r.reduzida) return `${fmt(r.parcelaAntes)} até contemplar e depois ${fmt(r.parcelaDepois)}`;
+  if (r.forma === 'degrau') return `${fmt(r.parcelaCheia)} na 1ª metade e ${fmt(r.parcelaSegundaMetade)} na 2ª`;
+  return `${r.prazo}x de ${fmt(r.parcela)}`;
+}
 function docProposta(p) {
   const r = calcConsorcio(p);
   const c = CATEGORIAS[p.cat] || CATEGORIAS.auto;
@@ -792,7 +821,7 @@ function docProposta(p) {
   <div class="doc-meta"><span>Simulação nº <strong>${esc(p.numero)}</strong></span><span>Emitida em <strong>${dt.toLocaleDateString('pt-BR')} às ${dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</strong></span></div>
   <div class="cli-info"><span>Simulação preparada para: <strong>${esc(p.nome)}</strong></span><span>${dt.toLocaleDateString('pt-BR')}</span></div>
   <div class="bloco-titulo">Plano contratado — ${esc(p.plano)}</div>
-  <table class="tbl-info">${tr('Valor do crédito', fmt(r.credito), 'linha-azul')}${tr('Prazo', r.prazo)}${tr('Parcelas pagas (mês da contemplação)', r.pagas)}${tr('Valor da parcela', fmt(r.parcela))}${p.entrada > 0 ? tr('Entrada', fmt(p.entrada), 'linha-azul') : ''}</table>
+  <table class="tbl-info">${tr('Valor do crédito', fmt(r.credito), 'linha-azul')}${tr('Prazo', r.prazo + ' meses')}${tr('Parcelas pagas (mês da contemplação)', r.pagas)}${linhasParcela(r)}${p.entrada > 0 ? tr('Entrada', fmt(p.entrada), 'linha-azul') : ''}</table>
   <div class="bloco-titulo">Oferta de lance</div>
   <div class="lance-row"><span class="ll">Recursos crédito <strong>(Embutido)</strong></span><span class="lp">${fmtPct(r.pctEmb, 4)}</span><span class="lv">${fmt(r.valEmb)}</span></div>
   <div class="lance-row"><span class="ll">Recursos Próprios</span><span class="lp">${fmtPct(r.pctProp, 4)}</span><span class="lv">${fmt(r.valProp)}</span></div>
@@ -800,21 +829,21 @@ function docProposta(p) {
   <div class="bloco-titulo">Plano pós-contemplação</div>
   <table class="tbl-info">${tr('Valor do crédito', fmt(r.creditoPos), 'linha-azul')}</table>
   <div class="sub-bloco">Lance diluído no prazo</div>
-  <table class="tbl-info">${tr('Quantidade da parcela', r.qtdNoPrazo)}${tr('Valor da parcela', fmt(r.parcela))}</table>
+  <table class="tbl-info">${tr('Quantidade da parcela', r.qtdNoPrazo)}${tr('Valor da parcela' + (r.forma === 'degrau' ? ' (varia no plano decrescente)' : ''), fmt(r.valorNoPrazo))}</table>
   <div class="sub-bloco">Lance diluição parcela</div>
   <table class="tbl-info">${tr('Quantidade da parcela', r.restantes)}${tr('Valor da parcela', fmt(r.parcelaDiluida))}</table>
   <div class="bloco-titulo">Demonstrativo da diluição do lance</div>
-  <table class="tbl-demo">${tr('Crédito contratado', fmt(r.credito))}${tr('Valor total do plano (crédito + taxas)', fmt(r.totalBruto))}${tr('(−) Parcelas pagas até a contemplação', `${r.pagas}x — ${fmt(r.valPagas)}`, 'menos')}${tr('Saldo devedor na contemplação', fmt(r.saldo), 'subtotal')}${tr('(−) Abatimento do lance embutido', fmt(r.abateEmb), 'menos')}${tr('(−) Abatimento do lance com recursos próprios', fmt(r.abateProp), 'menos')}${tr('Saldo devedor após o lance', fmt(r.saldoPos), 'subtotal')}${tr('Crédito liberado ao cliente', fmt(r.creditoPos))}${tr('Diluindo na parcela', `${r.restantes}x de ${fmt(r.parcelaDiluida)}`, 'opcao')}${tr('Diluindo no prazo', `${r.qtdNoPrazo}x de ${fmt(r.parcela)}`, 'opcao')}</table>
+  <table class="tbl-demo">${tr('Crédito contratado', fmt(r.credito))}${tr('Valor total do plano (crédito + taxas)', fmt(r.totalBruto))}${r.reduzida ? tr('Diferença paga a menor até a contemplação (rateada nas parcelas restantes)', fmt(r.redutor)) : ''}${tr('(−) Parcelas pagas até a contemplação', `${r.pagas}x — ${fmt(r.valPagas)}`, 'menos')}${tr('Saldo devedor na contemplação', fmt(r.saldo), 'subtotal')}${tr('(−) Abatimento do lance embutido', fmt(r.abateEmb), 'menos')}${tr('(−) Abatimento do lance com recursos próprios', fmt(r.abateProp), 'menos')}${tr('Saldo devedor após o lance', fmt(r.saldoPos), 'subtotal')}${tr('Crédito liberado ao cliente', fmt(r.creditoPos))}${tr('Diluindo na parcela', `${r.restantes}x de ${fmt(r.parcelaDiluida)}`, 'opcao')}${tr('Diluindo no prazo', `${r.qtdNoPrazo}x de ${fmt(r.valorNoPrazo)}`, 'opcao')}</table>
   <div class="demo-ok ${r.dentro ? 'ok' : 'fora'}">${r.dentro ? `✓ Diluição dentro do prazo do grupo (${r.prazo} meses).` : `✗ Fora dos critérios: o lance não pode passar de 100% nem a diluição ultrapassar ${r.prazo} meses.`}</div>
   <div class="aviso">⚠️ Os valores de diluição pós-contemplação são uma estimativa aproximada.<br>Confirme os valores exatos no sistema oficial da administradora antes de apresentar ao cliente.</div>
-  <div class="info-importantes"><h3>Informações importantes</h3><p>${info[0]}</p><p>${info[1]}</p><ul>${info[2].map(x => `<li>${x}</li>`).join('')}</ul><p>${info[3]}</p></div>
+  <div class="info-importantes"><h3>Informações importantes</h3><p>${info[0]}</p><p>${info[1]}</p><ul>${info[2].map(x => `<li>${x}</li>`).join('')}</ul><p>${info[3]}</p>${notaPlano(r.pctParcela, r.forma).map(x => `<p>${x}</p>`).join('')}</div>
   <div class="assin"><div>Consultor</div><div>Cliente</div></div>
   ${rodape()}`;
   return { label: p.nome, titulo: `${c.nome} · ${fmt(r.credito)}`, html: docFrame(c.titulo, SVG_TIPO[p.cat] || SVG_TIPO.auto, inner), prop: p, texto: textoProposta(p, r) };
 }
 function textoProposta(p, r) {
   const c = CATEGORIAS[p.cat] || CATEGORIAS.auto;
-  return `📊 SIMULAÇÃO DE ${c.titulo.toUpperCase()}\nCliente: ${p.nome}\nPlano: ${p.plano}\n\nCrédito: ${fmt(r.credito)} · ${r.prazo} meses\nParcela: ${fmt(r.parcela)}${p.entrada > 0 ? `\nEntrada: ${fmt(p.entrada)}` : ''}\n\nLance Embutido (${fmtPct(r.pctEmb)}): ${fmt(r.valEmb)}\nRecursos Próprios (${fmtPct(r.pctProp)}): ${fmt(r.valProp)}\nLance Total (${fmtPct(r.pctTotal)}): ${fmt(r.valTotal)}\n\nCrédito pós-contemplação: ${fmt(r.creditoPos)}\n\n${brand.nome && brand.nome !== 'Mobie' ? brand.nome : 'Mobie Soluções Financeiras'}${brand.tel ? ' · ' + brand.tel : ''}\n⚠ Simulação ilustrativa, sem garantia de contemplação.`;
+  return `📊 SIMULAÇÃO DE ${c.titulo.toUpperCase()}\nCliente: ${p.nome}\nPlano: ${p.plano}\n\nCrédito: ${fmt(r.credito)} · ${r.prazo} meses\nParcela: ${r.reduzida || r.forma === 'degrau' ? descParcela(r) : fmt(r.parcela)}${p.entrada > 0 ? `\nEntrada: ${fmt(p.entrada)}` : ''}\n\nLance Embutido (${fmtPct(r.pctEmb)}): ${fmt(r.valEmb)}\nRecursos Próprios (${fmtPct(r.pctProp)}): ${fmt(r.valProp)}\nLance Total (${fmtPct(r.pctTotal)}): ${fmt(r.valTotal)}\n\nCrédito pós-contemplação: ${fmt(r.creditoPos)}\n\n${brand.nome && brand.nome !== 'Mobie' ? brand.nome : 'Mobie Soluções Financeiras'}${brand.tel ? ' · ' + brand.tel : ''}\n⚠ Simulação ilustrativa, sem garantia de contemplação.`;
 }
 
 /* visualizador */
@@ -844,7 +873,7 @@ function dvMais() {
   const linha = (ic, t, fn) => `<button class="item" onclick="fecharMais();${fn}"><div class="av">${IC[ic]}</div><div class="tx"><b>${t}</b></div></button>`;
   $('mais-box').innerHTML = '<h3>Mais opções</h3><div class="lista" style="margin:0 -16px">' + linha('share', 'Enviar (compartilhar)', 'dvShare()') +
     (dv.itens.length > 1 ? linha('doc', 'PDF de todas as propostas', 'dvPDF(true)') : '') +
-    (p ? linha('scale', 'Comparar com financiamento ou renda fixa', 'dvComparar()') + linha('play', 'Apresentar em tela cheia', 'dvApres()') + linha('user', 'Salvar no CRM', 'dvCRM()') : '') + '</div>';
+    (p ? linha('lixo', 'Excluir esta proposta', 'dvExcluir()') + linha('scale', 'Comparar com financiamento ou renda fixa', 'dvComparar()') + linha('play', 'Apresentar em tela cheia', 'dvApres()') + linha('user', 'Salvar no CRM', 'dvCRM()') : '') + '</div>';
   $('mais-modal').classList.add('on');
 }
 function fecharDoc() { $('docView').classList.remove('on'); }
@@ -869,6 +898,7 @@ async function gerarPDF(htmls) {
   if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch (e) { } }
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
+  pdf.setProperties({ title: 'Proposta de consórcio', author: (brand.nome || 'Mobie'), creator: 'Mobie' });
   const LARG = 794, MARG = 8, larguraMM = 210 - 2 * MARG, alturaUtilMM = 297 - 2 * MARG - 6;
   const pxPorMM = LARG / larguraMM, alturaPag = Math.floor(alturaUtilMM * pxPorMM);
   const wrap = document.createElement('div'); wrap.style.cssText = `position:fixed;left:-10000px;top:0;width:${LARG}px;background:#fff;`; document.body.appendChild(wrap);
@@ -879,7 +909,7 @@ async function gerarPDF(htmls) {
       const el = wrap.firstElementChild; el.style.width = LARG + 'px'; el.style.borderRadius = '0'; el.style.boxShadow = 'none';
       await Promise.all(Array.from(wrap.querySelectorAll('img')).map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
       const H = el.getBoundingClientRect().height;
-      const escala = Math.max(1, Math.min(2, Math.sqrt(12e6 / (LARG * H))));   // limite de memória do canvas no celular
+      const escala = Math.max(1, Math.min(2, Math.sqrt(8e6 / (LARG * H))));   // limite de memória do canvas no celular
       const canvas = await html2canvas(el, { scale: escala, backgroundColor: '#ffffff', logging: false, useCORS: true, windowWidth: LARG });
       // pontos de quebra seguros: topo de linhas e blocos (sem deixar título sozinho no fim da página)
       const topo = el.getBoundingClientRect().top;
@@ -926,7 +956,7 @@ async function executarPDF(todas, modo) {
   const nome = todas ? `Propostas-${new Date().toISOString().slice(0, 10)}.pdf` : nomeArquivo(it);
   const arq = new File([blob], nome, { type: 'application/pdf' });
   const nomeCli = primeiroNome(it.label);
-  const dados = { files: [arq], title: it.titulo || nome };
+  const dados = { files: [arq] };   // sem título nem link: só o arquivo (e o texto curto no WhatsApp)
   if (modo === 'whatsapp') dados.text = `Olá${nomeCli ? ', ' + nomeCli : ''}! Segue a proposta de consórcio em PDF.`;
   if (modo !== 'salvar' && navigator.canShare && navigator.canShare({ files: [arq] })) {
     try { await navigator.share(dados); return; }
@@ -949,6 +979,7 @@ function pdfPronto(dados, blob, nome, modo, it) {   // segundo toque, para o nav
 const dvPDF = todas => executarPDF(!!todas, 'salvar');
 const dvShare = () => executarPDF(false, 'enviar');
 const dvWA = () => executarPDF(false, 'whatsapp');
+function dvExcluir() { const p = dv.itens[dv.i].prop; if (!p) return; if (!confirm(`Excluir a proposta de ${p.nome} (${fmt(p.credito)})?`)) return; props = props.filter(x => x.id !== p.id); salvarTudo(); renderHome(); fecharDoc(); toast('Proposta excluída.'); }
 function dvComparar() { const p = dv.itens[dv.i].prop; fecharDoc(); irPara('comp'); $('c-base').value = p.id; cmpCarregar(); }
 function dvApres() { const p = dv.itens[dv.i].prop; fecharDoc(); apresentar(p); }
 function dvCRM() { const p = dv.itens[dv.i].prop; const l = leadDaProposta(p); fecharDoc(); toast(`${l.nome} salvo no CRM (etapa Proposta).`); }
@@ -1107,7 +1138,12 @@ function renderHome() {
   const fimHoje = new Date(); fimHoje.setHours(23, 59, 59, 999);
   const ret = leads.filter(l => l.retorno && !['Fechado', 'Perdido'].includes(l.etapa) && new Date(l.retorno) <= fimHoje).sort((a, b) => a.retorno.localeCompare(b.retorno));
   $('home-ret').innerHTML = ret.length ? ret.map(l => itemLead(l)).join('') : '<div class="vazio">Nada pendente para hoje. 👌</div>';
-  $('home-props').innerHTML = props.length ? props.slice(0, 5).map(p => `<button class="item" onclick="reabrir('${p.id}')"><div class="av">${esc(ini(p.nome))}</div><div class="tx"><b>${esc(p.nome)}</b><span>${CATEGORIAS[p.cat].nome} · ${new Date(p.criado).toLocaleDateString('pt-BR')}</span></div><div class="vl">${fmt(p.credito).replace(',00', '')}</div></button>`).join('') : '<div class="vazio">Nenhuma proposta ainda. Gere a primeira no Simulador ou peça ao Mob.</div>';
+  $('home-props').innerHTML = props.length ? props.slice(0, 8).map(p => `<div class="item-linha"><button class="item" onclick="reabrir('${p.id}')"><div class="av">${esc(ini(p.nome))}</div><div class="tx"><b>${esc(p.nome)}</b><span>${CATEGORIAS[p.cat].nome} · ${new Date(p.criado).toLocaleDateString('pt-BR')}</span></div><div class="vl">${fmt(p.credito).replace(',00', '')}</div></button><button class="ex" onclick="excluirProp('${p.id}')" aria-label="Excluir proposta de ${esc(p.nome)}">${IC.lixo}</button></div>`).join('') : '<div class="vazio">Nenhuma proposta ainda. Gere a primeira no Simulador ou peça ao Mob.</div>';
+}
+function excluirProp(id) {
+  const p = props.find(x => x.id === id); if (!p) return;
+  if (!confirm(`Excluir a proposta de ${p.nome} (${fmt(p.credito)})? Isso não pode ser desfeito.`)) return;
+  props = props.filter(x => x.id !== id); salvarTudo(); renderHome(); toast('Proposta excluída.');
 }
 function reabrir(id) { const p = props.find(x => x.id === id); if (p) abrirDocs([docProposta(p)]); }
 
@@ -1439,6 +1475,7 @@ const conhecidos = () => [...new Set([...leads.map(l => l.nome), ...props.map(p 
 let iaHist = [];
 async function cenaProcessar(texto) {
   msg(texto, 'u');
+  if (tentarRenomear(texto)) return;
   if (nuvem && nuvem.user && nuvem.iaOk) {
     pend = null;
     const aguarde = msg('…', 'c');
@@ -1470,19 +1507,21 @@ function cenaExecutarIA(resp, textoOriginal) {
   for (const a of acoes) {
     if (a.acao === 'perguntar' && typeof a.pergunta === 'string') { msg(a.pergunta.slice(0, 400), 'c'); perguntou = a.pergunta; }
     else if (a.acao === 'criar_propostas') {
+      const NOME_RUIM = /^(eu|voce|você|nos|nós|mim|ele|ela|cliente|alguem|alguém)$/i;
       const itens = (Array.isArray(a.itens) ? a.itens : []).slice(0, 10)
-        .filter(i => i && typeof i.nome === 'string' && i.nome.trim() && !/^(eu|voce|você|nos|nós|mim|ele|ela|cliente|alguem|alguém)$/i.test(i.nome.trim()) && numOk(i.credito, 1000, 1e9))
-        .map(i => ({ nome: i.nome.trim().slice(0, 80), credito: i.credito }));
-      if (!itens.length) { msg('Para quem é a proposta? Me diga o nome do cliente.', 'c'); continue; }
+        .filter(i => i && numOk(i.credito, 1000, 1e9))
+        .map(i => ({ nome: typeof i.nome === 'string' && i.nome.trim() && !NOME_RUIM.test(i.nome.trim()) ? i.nome.trim().slice(0, 80) : '', credito: i.credito }));
+      if (!itens.length) { pend = { falta: 'valor', itens: [{ nome: '', credito: 0 }], base: padraoCat(simCat || 'auto'), mes: null, extras: null }; msg('Qual o valor da carta?', 'c'); continue; }
       const cat = CATEGORIAS[a.categoria] ? a.categoria : (CATEGORIAS[simCat] ? simCat : 'auto');
       const base = padraoCat(cat);
-      base.prazo = numOk(a.prazo, 1, 400) ? Math.round(a.prazo) : base.prazo;
+      base.prazo = numOk(a.prazo, 6, 420) ? Math.round(a.prazo) : base.prazo;
       const tx = numOk(a.taxa_adm_pct, 0, 100); if (tx !== undefined) base.taxa = tx;
-      const em = numOk(a.lance_embutido_pct, 0, 99), pr = numOk(a.lance_proprio_pct, 0, 99);
-      if (em !== undefined) base.pctEmb = em; if (pr !== undefined) base.pctProp = pr;
+      const pp = numOk(a.pct_parcela, 10, 100); if (pp !== undefined) base.pctParcela = pp;
+      if (a.forma_parcela === 'degrau' || a.forma_parcela === 'linear') base.forma = a.forma_parcela;
       const en = numOk(a.entrada, 0, 1e9); if (en) base.entrada = en;
-      const mes = numOk(a.mes_contemplacao, 0, base.prazo);   // opcional: sem mês, simula no mês 1 e avisa
-      cenaFazerPropostas({ itens, base, mes: mes === undefined ? null : Math.round(mes) });
+      const extras = { semLance: a.sem_lance === true, pctEmb: numOk(a.lance_embutido_pct, 0, 99), pctProp: numOk(a.lance_proprio_pct, 0, 99), lanceTotal: numOk(a.lance_total_pct, 0, 99), lanceValor: numOk(a.lance_valor, 0, 1e9), lanceParcelas: numOk(a.lance_parcelas, 0, 400) };
+      const mes = numOk(a.mes_contemplacao, 0, base.prazo);   // opcional: sem mês, simula no mês 1
+      cenaFazerPropostas({ itens, base, mes: mes === undefined ? null : Math.round(mes), extras });
     }
     else if (a.acao === 'comparar') {
       const pr = typeof a.nome === 'string' ? propPorNome(a.nome) : null;
@@ -1519,30 +1558,65 @@ function cenaDecidir(texto) {
   }
 }
 const padraoCat = k => { const c = CATEGORIAS[k]; return { cat: k, prazo: c.prazo, taxa: c.taxa }; };
+const LIM_EMBUTIDO = 25;   // parte do lance que vai como embutido quando o corretor só diz o total
+// Converte o que foi dito sobre lance (%, reais, parcelas, "sem lance") nos percentuais da proposta.
+function resolverLance(pr, x) {
+  if (!x) return;
+  if (x.semLance) { pr.pctEmb = 0; pr.pctProp = 0; return; }
+  const cred = pr.credito || 1;
+  let emb = x.pctEmb, prop = x.pctProp, total = x.lanceTotal;
+  if (x.embValor != null) emb = x.embValor / cred * 100;
+  if (x.propValor != null) prop = x.propValor / cred * 100;
+  if (total == null && x.lanceValor != null) total = x.lanceValor / cred * 100;
+  if (total == null && x.lanceParcelas != null) { const r0 = calcConsorcio(Object.assign({}, pr, { pctEmb: 0, pctProp: 0 })); total = x.lanceParcelas * r0.parcelaAntes / cred * 100; }
+  if (emb == null && prop == null && total != null) { emb = Math.min(total, LIM_EMBUTIDO); prop = total - emb; }
+  else if (total != null && emb != null && prop == null) prop = Math.max(0, total - emb);
+  else if (total != null && prop != null && emb == null) emb = Math.max(0, total - prop);
+  if (emb != null) pr.pctEmb = Math.min(99, Math.round(emb * 10000) / 10000);
+  if (prop != null) pr.pctProp = Math.min(99, Math.round(prop * 10000) / 10000);
+}
 function cenaProposta(r) {
   const n = r.num, nomes = r.nomes || [], vals = n.valores;
   const cat = r.cat || (simCat || 'auto');
   const base = Object.assign(padraoCat(cat), { prazo: n.prazo || CATEGORIAS[cat].prazo, taxa: n.taxa != null ? n.taxa : CATEGORIAS[cat].taxa });
   if (n.entrada) base.entrada = n.entrada;
-  if (n.pctEmb != null) base.pctEmb = n.pctEmb; if (n.pctProp != null) base.pctProp = n.pctProp;
-  if (n.lanceTotal != null && n.pctEmb == null && n.pctProp == null) { base.pctEmb = Math.min(n.lanceTotal, 25); base.pctProp = +(n.lanceTotal - base.pctEmb).toFixed(2); }
   if (n.telefone) base.tel = n.telefone;
+  if (n.plano) { if (n.plano.pct != null) base.pctParcela = n.plano.pct; if (n.plano.forma) base.forma = n.plano.forma; }
+  const extras = { semLance: n.semLance, pctEmb: n.pctEmb, pctProp: n.pctProp, lanceTotal: n.lanceTotal, lanceValor: n.lanceValor, lanceParcelas: n.lanceParcelas, embValor: n.embValor, propValor: n.propValor };
   const total = Math.max(nomes.length, vals.length, 1);
   const itens = [];
   for (let i = 0; i < total; i++) itens.push({ nome: nomes[i] || (nomes.length === 1 ? nomes[0] : ''), credito: vals[i] || (vals.length === 1 ? vals[0] : 0) });
-  cenaFazerPropostas({ itens, base, mes: n.mes });
+  cenaFazerPropostas({ itens, base, mes: n.mes, extras });
+}
+// Resumo curto de uma proposta para o chat: o que foi usado (plano, prazo, lance, mês).
+function linhaProposta(pr) {
+  const r = calcConsorcio(pr);
+  const plano = r.reduzida || r.forma === 'degrau' ? ` · ${rotuloPlano(r.pctParcela, r.forma).replace(/ \(Renovação (50|70)\)/, '')}` : '';
+  return `${pr.nome} — ${fmt(pr.credito).replace(',00', '')} em ${pr.prazo}x${plano} · ${descParcela(r).replace(/^\d+x de /, '')} · lance ${fmtPct(r.pctTotal, 0)} · mês ${pr.pagas}`;
 }
 function cenaFazerPropostas(p) {
-  if (p.itens.some(i => !i.nome)) { pend = Object.assign(p, { falta: 'nome' }); return msg('Para quem é a proposta?', 'c'); }
-  if (p.itens.some(i => !i.credito)) { pend = Object.assign(p, { falta: 'valor' }); return msg(`Falta um dado: qual o valor da carta${p.itens.length > 1 ? ' de cada cliente' : ''}?`, 'c'); }
-  const mesPadrao = p.mes == null; if (mesPadrao) p.mes = 1;   // mês da contemplação é opcional: sem ele, simula no mês 1
-  const lote = p.itens.map(i => { const pr = novaProposta(Object.assign({}, p.base, { nome: i.nome, credito: i.credito, pagas: p.mes })); return pr; });
+  // só pergunta o que é impossível adivinhar: o valor da carta. Sem nome, a proposta sai como "Cliente" e dá para renomear depois.
+  if (p.itens.some(i => !i.credito)) { pend = Object.assign(p, { falta: 'valor' }); return msg(`Qual o valor da carta${p.itens.length > 1 ? ' de cada cliente' : ''}?`, 'c'); }
+  if (p.mes == null) p.mes = 1;   // mês da contemplação é opcional: sem ele, simula no mês 1
+  const lote = p.itens.map(i => { const pr = novaProposta(Object.assign({}, p.base, { nome: i.nome || 'Cliente', credito: i.credito, pagas: p.mes })); resolverLance(pr, p.extras); return pr; });
   const err = lote.map(validar).find(Boolean); if (err) { msg(err, 'c'); return; }
   lote.forEach(guardarProposta);
   const docs = lote.map(docProposta);
-  const resumo = lote.map(pr => { const r = calcConsorcio(pr); return `• ${pr.nome}: ${fmt(pr.credito)} — ${pr.prazo}x de ${fmt(r.parcela)}`; }).join('\n');
-  msg((lote.length > 1 ? `As ${lote.length} propostas estão prontas, um PDF para cada. Dá uma olhada antes de mandar.\n${resumo}` : `Pronto. Proposta de ${CATEGORIAS[lote[0].cat].nome.toLowerCase()} com contemplação no mês ${p.mes}.\n${resumo}\nConfira antes de enviar.`) + (mesPadrao ? `\n(Simulei a contemplação no mês 1. Se quiser outro mês, é só dizer.)` : ''), 'c',
+  const semNome = lote.some(pr => pr.nome === 'Cliente');
+  msg((lote.length > 1 ? `${lote.length} propostas prontas:\n` : 'Pronto: ') + lote.map(linhaProposta).join(lote.length > 1 ? '\n' : '') + (semNome ? '\nSe quiser, diga o nome do cliente.' : ''), 'c',
     [[lote.length > 1 ? 'Abrir propostas' : 'Abrir proposta', () => { fecharCena(); abrirDocs(docs); }], ['Salvar no CRM', () => { lote.forEach(leadDaProposta); toast('Salvo no CRM.'); renderHome(); }]]);
+}
+// "o nome é Marcos", "é pro Marcos", "Marcos": dá nome à última proposta feita sem nome.
+const NAO_NOME = /^(ok|okay|obrigad[oa]|valeu|sim|nao|não|pronto|certo|beleza|legal|tudo|bom|boa|oi|ola|olá|isso|esse|essa|abrir|abre)$/i;
+function tentarRenomear(texto) {
+  const ult = props[0];
+  if (!ult || ult.nome !== 'Cliente' || Date.now() - new Date(ult.criado).getTime() > 15 * 60e3) return false;
+  const m = /^\s*(?:(?:o\s+)?nome\s+(?:dele|dela|do\s+cliente|da\s+cliente)?\s*(?:é|e)\s+|(?:é|e)\s+(?:pra|para|pro)\s+(?:o\s+|a\s+)?|(?:pra|para|pro|do|da)\s+(?:o\s+|a\s+)?|chama(?:r)?(?:-se)?\s+)?(\p{Lu}[\p{L}]+(?:\s+\p{Lu}[\p{L}]+){0,2})\s*[.!]?\s*$/u.exec(texto);
+  if (!m || NAO_NOME.test(m[1].trim())) return false;
+  const nome = m[1].trim();
+  ult.nome = nome; salvarTudo(); renderHome();
+  msg(`Pronto, a proposta agora é de ${nome}.`, 'c', [['Abrir proposta', () => { fecharCena(); abrirDocs([docProposta(ult)]); }]]);
+  return true;
 }
 function cenaCompararPedido(r, kind) {
   const nome = (r.nomes || [])[0];

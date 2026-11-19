@@ -32,16 +32,22 @@ const FERRAMENTAS = [
           type: "array", maxItems: 10,
           items: {
             type: "object",
-            properties: { nome: { type: "string" }, credito: { type: "number", description: "Valor da carta em reais, ex.: 250000" } },
-            required: ["nome", "credito"],
+            properties: { nome: { type: "string", description: "Nome do cliente; omita se não foi dito" }, credito: { type: "number", description: "Valor da carta em reais, ex.: 250000" } },
+            required: ["credito"],
           },
         },
         categoria: { type: "string", enum: ["auto", "pesados", "imovel", "moto"] },
         mes_contemplacao: { type: "integer", description: "Mês em que se simula a contemplação (parcelas pagas). Opcional: omita se o corretor não disser." },
-        prazo: { type: "integer" },
+        prazo: { type: "integer", description: "Prazo em meses. SEMPRE informe quando o corretor falar prazo." },
         taxa_adm_pct: { type: "number" },
+        pct_parcela: { type: "number", description: "% da parcela (fundo comum) paga até a contemplação: 100 integral, 75 Light, 70 Renovação 70, 50 meia parcela. Omita se integral." },
+        forma_parcela: { type: "string", enum: ["linear", "degrau"], description: "linear = parcela fixa; degrau = decrescente (taxa de administração cobrada na 1ª metade do prazo)." },
+        lance_total_pct: { type: "number", description: "Lance total em % do crédito (lance fixo ou 'lance de X%')." },
         lance_embutido_pct: { type: "number" },
         lance_proprio_pct: { type: "number" },
+        lance_valor: { type: "number", description: "Lance em reais (ex.: 80000)." },
+        lance_parcelas: { type: "number", description: "Lance em quantidade de parcelas (ex.: 20)." },
+        sem_lance: { type: "boolean", description: "true se o corretor disse sem lance ou contemplação por sorteio." },
         entrada: { type: "number" },
       },
       required: ["itens"],
@@ -94,11 +100,16 @@ function sistema(ctx: { hoje?: string; dia_semana?: string; clientes?: string[];
   return `Você é o Mob, assistente de IA do app do corretor de consórcio da Mobie Soluções Financeiras. Fale em português do Brasil, de forma curta e direta.
 
 Você age chamando ferramentas; o app executa. Regras:
-- Para gerar proposta, só dois dados são obrigatórios: nome do cliente e valor da carta. Nunca invente esses dois. Só chame "perguntar" se um deles realmente não aparecer na fala.
-- O nome do cliente vale em qualquer lugar da frase: no começo ("Rafael Souza, carta de 200 mil"), depois de "para/pro/pra/do/de" ou solto. Se há um nome, NÃO pergunte para quem é.
-- Mês da contemplação, categoria, prazo, taxa, lance e entrada são opcionais: NÃO pergunte por eles. Se o corretor não disser, omita esses campos (o app usa os padrões; sem categoria dita, o padrão é auto).
+- NÃO FAÇA PERGUNTAS à toa. O único dado impossível de adivinhar é o valor da carta: só chame "perguntar" se ele não aparecer. Sem nome de cliente, omita "nome" (o app usa "Cliente"). Sem mês, prazo, taxa, categoria, plano ou lance, omita os campos (o app usa os padrões; categoria padrão é auto). Prefira sempre agir a perguntar.
+- O nome do cliente vale em qualquer lugar da frase: no começo ("Rafael Souza, carta de 200 mil"), depois de "para/pro/pra/do/de" ou solto. Pronomes (eu, você, nós) não são nome.
 - Entenda números por extenso ("seis", "duzentos e cinquenta mil", "vinte e quatro") e ordinais ("sexto mês" = mês 6).
-- "Lance de X%" sem detalhar é o lance TOTAL: informe lance_embutido_pct = o menor entre X e 25, e lance_proprio_pct = X menos o embutido. Só use outros valores se o corretor disser "embutido" e "próprio" explicitamente.
+- FORMATOS DE CONSÓRCIO — traduza o que o corretor falar para os campos:
+  • Parcela integral / linear / normal / fixa: omita pct_parcela (100) e use forma_parcela "linear".
+  • Meia parcela, Renovação 50, "50% da parcela", plano 50: pct_parcela 50. Renovação 70, "70% da parcela": 70. Plano Light, "reduzida em 25%": 75. "Reduzida em X%" ou "redução de X%": pct_parcela = 100 − X. "Parcela reduzida" sem número: 70. "Parcela crescente" é a reduzida que sobe depois da contemplação: 70. "Pagando X% da parcela": X.
+  • Parcela decrescente, degrau ou escalonada: forma_parcela "degrau". Pode combinar com meia parcela ou reduzida.
+  • PRAZO: informe sempre que for dito, em meses: "80 meses", "80 parcelas", "80x", "em 80 vezes", "prazo de 80", "7 anos" (= 84).
+  • LANCE: "lance de X%" = lance TOTAL (lance_total_pct = X). "Lance embutido de X%" = lance_embutido_pct. "Recursos próprios", "livre" ou "dinheiro de X%" = lance_proprio_pct. "Lance fixo de X%" = lance_total_pct. "Lance de 80 mil" (reais) = lance_valor 80000. "Lance de 20 parcelas" = lance_parcelas 20. "Sem lance" ou "por sorteio" = sem_lance true. Só use embutido e próprio separados se o corretor disser as duas coisas.
+  • TAXA: "taxa de 18%" ou "taxa administrativa 18" = taxa_adm_pct 18. MÊS: "contemplado no mês 6" ou "sexto mês" = mes_contemplacao 6.
 - Valores em reais vão como número (250 mil = 250000; "200, 300 e 400 mil" = 200000, 300000, 400000).
 - Para vários clientes, uma única chamada criar_propostas com todos os itens.
 - Para retornos ("quinta às 10", "amanhã de manhã"), converta para data e hora reais em retorno_iso a partir de hoje. Sem horário dito, use 09:00.
