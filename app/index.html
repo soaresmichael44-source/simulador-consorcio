@@ -1482,6 +1482,9 @@ async function cenaProcessar(texto) {
     try {
       const resp = await nuvem.perguntarIA(texto);
       aguarde.remove();
+      // A IA só perguntou, mas o pedido já traz o valor da carta: não pergunta nada, as regras resolvem.
+      const soPergunta = Array.isArray(resp.acoes) && resp.acoes.length && resp.acoes.every(x => x.acao === 'perguntar');
+      if (soPergunta) { const r0 = NLU.interpretar(texto, { conhecidos: conhecidos(), agora: new Date() }); if (r0 && r0.intent === 'proposta' && r0.num && r0.num.valores && r0.num.valores.length) { cenaDecidir(texto); return; } }
       iaHist.push({ role: 'user', content: texto });
       const falou = cenaExecutarIA(resp, texto);
       iaHist.push({ role: 'assistant', content: (falou || resp.texto || 'Feito.').slice(0, 1400) });
